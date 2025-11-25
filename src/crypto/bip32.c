@@ -115,31 +115,31 @@ neoc_error_t neoc_bip32_derive_child(const neoc_bip32_key_t *parent,
             if (!ec_key) {
                 return neoc_error_set(NEOC_ERROR_CRYPTO, "Failed to create EC key");
             }
-            
+
             BIGNUM *priv_bn = BN_bin2bn(&parent->key[1], 32, NULL);
             if (!priv_bn || !EC_KEY_set_private_key(ec_key, priv_bn)) {
-                BN_free(priv_bn);
+                BN_clear_free(priv_bn);  // Use clear_free for sensitive key material
                 EC_KEY_free(ec_key);
                 return neoc_error_set(NEOC_ERROR_CRYPTO, "Failed to set private key");
             }
-            
+
             const EC_GROUP *group = EC_KEY_get0_group(ec_key);
             EC_POINT *pub_point = EC_POINT_new(group);
             if (!pub_point || !EC_POINT_mul(group, pub_point, priv_bn, NULL, NULL, NULL)) {
                 EC_POINT_free(pub_point);
-                BN_free(priv_bn);
+                BN_clear_free(priv_bn);  // Use clear_free for sensitive key material
                 EC_KEY_free(ec_key);
                 return neoc_error_set(NEOC_ERROR_CRYPTO, "Failed to compute public key");
             }
-            
+
             size_t pub_len = EC_POINT_point2oct(group, pub_point,
                                                POINT_CONVERSION_COMPRESSED,
                                                data, 33, NULL);
-            
+
             EC_POINT_free(pub_point);
-            BN_free(priv_bn);
+            BN_clear_free(priv_bn);  // Use clear_free for sensitive key material
             EC_KEY_free(ec_key);
-            
+
             if (pub_len != 33) {
                 return neoc_error_set(NEOC_ERROR_CRYPTO, "Invalid public key length");
             }
@@ -178,30 +178,30 @@ neoc_error_t neoc_bip32_derive_child(const neoc_bip32_key_t *parent,
         BIGNUM *il = BN_bin2bn(hmac_result, 32, NULL);
         BIGNUM *child_key = BN_new();
         BN_CTX *ctx = BN_CTX_new();
-        
+
         EC_GROUP_get_order(group, order, ctx);
         BN_mod_add(child_key, parent_key, il, order, ctx);
-        
+
         // Check if result is valid
         if (BN_is_zero(child_key) || BN_cmp(child_key, order) >= 0) {
             BN_CTX_free(ctx);
-            BN_free(child_key);
-            BN_free(il);
-            BN_free(parent_key);
+            BN_clear_free(child_key);   // Use clear_free for sensitive key material
+            BN_clear_free(il);          // Intermediate key is sensitive
+            BN_clear_free(parent_key);  // Parent key is sensitive
             BN_free(order);
             EC_GROUP_free(group);
             return neoc_error_set(NEOC_ERROR_CRYPTO, "Invalid child key");
         }
-        
+
         // Store child private key
         child->key[0] = 0x00;
         BN_bn2binpad(child_key, &child->key[1], 32);
         child->is_private = true;
-        
+
         BN_CTX_free(ctx);
-        BN_free(child_key);
-        BN_free(il);
-        BN_free(parent_key);
+        BN_clear_free(child_key);   // Use clear_free for sensitive key material
+        BN_clear_free(il);          // Intermediate key is sensitive
+        BN_clear_free(parent_key);  // Parent key is sensitive
         BN_free(order);
         EC_GROUP_free(group);
     } else {
@@ -215,18 +215,18 @@ neoc_error_t neoc_bip32_derive_child(const neoc_bip32_key_t *parent,
         EC_POINT *child_point = EC_POINT_new(group);
         EC_POINT *generator_point = EC_POINT_new(group);
         BN_CTX *ctx = BN_CTX_new();
-        
+
         // Get parent public key point
         if (EC_POINT_oct2point(group, parent_point, &parent->key[0], 33, ctx) != 1) {
             EC_POINT_free(parent_point);
             EC_POINT_free(child_point);
             EC_POINT_free(generator_point);
             BN_CTX_free(ctx);
-            BN_free(il);
+            BN_clear_free(il);  // Use clear_free for intermediate key material
             EC_GROUP_free(group);
             return neoc_error_set(NEOC_ERROR_CRYPTO, "Invalid parent public key");
         }
-        
+
         // Get generator point and multiply by il
         const EC_POINT *generator = EC_GROUP_get0_generator(group);
         if (!generator) {
@@ -234,7 +234,7 @@ neoc_error_t neoc_bip32_derive_child(const neoc_bip32_key_t *parent,
             EC_POINT_free(child_point);
             EC_POINT_free(generator_point);
             BN_CTX_free(ctx);
-            BN_free(il);
+            BN_clear_free(il);  // Use clear_free for intermediate key material
             EC_GROUP_free(group);
             return neoc_error_set(NEOC_ERROR_CRYPTO, "Cannot get generator point");
         }
@@ -245,22 +245,22 @@ neoc_error_t neoc_bip32_derive_child(const neoc_bip32_key_t *parent,
             EC_POINT_free(child_point);
             EC_POINT_free(generator_point);
             BN_CTX_free(ctx);
-            BN_free(il);
+            BN_clear_free(il);  // Use clear_free for intermediate key material
             EC_GROUP_free(group);
             return neoc_error_set(NEOC_ERROR_CRYPTO, "Point multiplication failed");
         }
-        
+
         // Add parent point to generator*il to get child point
         if (EC_POINT_add(group, child_point, parent_point, generator_point, ctx) != 1) {
             EC_POINT_free(parent_point);
             EC_POINT_free(child_point);
             EC_POINT_free(generator_point);
             BN_CTX_free(ctx);
-            BN_free(il);
+            BN_clear_free(il);  // Use clear_free for intermediate key material
             EC_GROUP_free(group);
             return neoc_error_set(NEOC_ERROR_CRYPTO, "Point addition failed");
         }
-        
+
         // Convert child point back to compressed public key
         if (EC_POINT_point2oct(group, child_point, POINT_CONVERSION_COMPRESSED,
                               child->key, 33, ctx) != 33) {
@@ -268,18 +268,18 @@ neoc_error_t neoc_bip32_derive_child(const neoc_bip32_key_t *parent,
             EC_POINT_free(child_point);
             EC_POINT_free(generator_point);
             BN_CTX_free(ctx);
-            BN_free(il);
+            BN_clear_free(il);  // Use clear_free for intermediate key material
             EC_GROUP_free(group);
             return neoc_error_set(NEOC_ERROR_CRYPTO, "Point to octets conversion failed");
         }
-        
+
         child->is_private = false;
-        
+
         EC_POINT_free(parent_point);
         EC_POINT_free(child_point);
         EC_POINT_free(generator_point);
         BN_CTX_free(ctx);
-        BN_free(il);
+        BN_clear_free(il);  // Use clear_free for intermediate key material
         EC_GROUP_free(group);
     }
     
@@ -368,35 +368,35 @@ neoc_error_t neoc_bip32_get_public_key(const neoc_bip32_key_t *key,
         if (!ec_key) {
             return neoc_error_set(NEOC_ERROR_CRYPTO, "Failed to create EC key");
         }
-        
+
         BIGNUM *priv_bn = BN_bin2bn(&key->key[1], 32, NULL);
         if (!priv_bn || !EC_KEY_set_private_key(ec_key, priv_bn)) {
-            BN_free(priv_bn);
+            BN_clear_free(priv_bn);  // Use clear_free for sensitive key material
             EC_KEY_free(ec_key);
             return neoc_error_set(NEOC_ERROR_CRYPTO, "Failed to set private key");
         }
-        
+
         const EC_GROUP *group = EC_KEY_get0_group(ec_key);
         EC_POINT *pub_point = EC_POINT_new(group);
         if (!pub_point || !EC_POINT_mul(group, pub_point, priv_bn, NULL, NULL, NULL)) {
             EC_POINT_free(pub_point);
-            BN_free(priv_bn);
+            BN_clear_free(priv_bn);  // Use clear_free for sensitive key material
             EC_KEY_free(ec_key);
             return neoc_error_set(NEOC_ERROR_CRYPTO, "Failed to compute public key");
         }
-        
+
         size_t pub_len = EC_POINT_point2oct(group, pub_point,
                                            POINT_CONVERSION_COMPRESSED,
                                            public_key->key, 33, NULL);
-        
+
         EC_POINT_free(pub_point);
-        BN_free(priv_bn);
+        BN_clear_free(priv_bn);  // Use clear_free for sensitive key material
         EC_KEY_free(ec_key);
-        
+
         if (pub_len != 33) {
             return neoc_error_set(NEOC_ERROR_CRYPTO, "Invalid public key length");
         }
-        
+
         // Update version to public
         memcpy(public_key->version, MAINNET_PUBLIC, 4);
         public_key->is_private = false;

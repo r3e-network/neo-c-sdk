@@ -156,47 +156,52 @@ neoc_error_t neoc_nep2_encrypt(const uint8_t *private_key,
         neoc_ec_key_pair_free(key_pair);
         return err;
     }
-    
+
     // XOR private key with first 32 bytes of derived key
     uint8_t xored[32];
     memcpy(xored, private_key, 32);
     xor_bytes(xored, derived_key, 32);
-    
+
     // Perform AES encryption
     EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
     if (!ctx) {
+        neoc_secure_memzero(derived_key, sizeof(derived_key));  // Clear sensitive data
+        neoc_secure_memzero(xored, sizeof(xored));              // Clear sensitive data
         neoc_ec_key_pair_free(key_pair);
         return neoc_error_set(NEOC_ERROR_MEMORY, "Failed to create cipher context");
     }
-    
+
     if (EVP_EncryptInit_ex(ctx, EVP_aes_256_ecb(), NULL, derived_key + 32, NULL) != 1) {
         EVP_CIPHER_CTX_free(ctx);
+        neoc_secure_memzero(derived_key, sizeof(derived_key));  // Clear sensitive data
+        neoc_secure_memzero(xored, sizeof(xored));              // Clear sensitive data
         neoc_ec_key_pair_free(key_pair);
         return neoc_error_set(NEOC_ERROR_CRYPTO, "Failed to init AES");
     }
-    
+
     EVP_CIPHER_CTX_set_padding(ctx, 0); // Disable padding for NEP-2
-    
+
     int len;
-    // int ciphertext_len; // Not needed - we know output is 32 bytes
     uint8_t ciphertext[48]; // Enough for padding
-    
+
     if (EVP_EncryptUpdate(ctx, ciphertext, &len, xored, 32) != 1) {
         EVP_CIPHER_CTX_free(ctx);
+        neoc_secure_memzero(derived_key, sizeof(derived_key));  // Clear sensitive data
+        neoc_secure_memzero(xored, sizeof(xored));              // Clear sensitive data
         neoc_ec_key_pair_free(key_pair);
         return neoc_error_set(NEOC_ERROR_CRYPTO, "Failed to encrypt");
     }
-    // ciphertext_len = len; // Not used
-    
+
     if (EVP_EncryptFinal_ex(ctx, ciphertext + len, &len) != 1) {
         EVP_CIPHER_CTX_free(ctx);
+        neoc_secure_memzero(derived_key, sizeof(derived_key));  // Clear sensitive data
+        neoc_secure_memzero(xored, sizeof(xored));              // Clear sensitive data
         neoc_ec_key_pair_free(key_pair);
         return neoc_error_set(NEOC_ERROR_CRYPTO, "Failed to finalize encryption");
     }
-    // ciphertext_len += len; // Not used - we know total is 32 bytes
-    
+
     EVP_CIPHER_CTX_free(ctx);
-    
+
     // Build NEP-2 structure
     uint8_t nep2_data[NEP2_ENCRYPTED_SIZE];
     nep2_data[0] = NEP2_PREFIX_1;
@@ -204,10 +209,14 @@ neoc_error_t neoc_nep2_encrypt(const uint8_t *private_key,
     nep2_data[2] = is_compressed ? NEP2_FLAG_COMPRESSED : NEP2_FLAG_UNCOMPRESSED;
     memcpy(nep2_data + 3, salt, 4);
     memcpy(nep2_data + 7, ciphertext, 32);
-    
+
     // Base58Check encode
     err = neoc_base58_check_encode(nep2_data, NEP2_ENCRYPTED_SIZE, encrypted_key, encrypted_key_len);
-    
+
+    // Clear all sensitive data before returning
+    neoc_secure_memzero(derived_key, sizeof(derived_key));
+    neoc_secure_memzero(xored, sizeof(xored));
+
     neoc_ec_key_pair_free(key_pair);
     return err;
 }
@@ -250,50 +259,58 @@ neoc_error_t neoc_nep2_decrypt(const char *encrypted_key,
     if (err != NEOC_SUCCESS) {
         return err;
     }
-    
+
     // Decrypt using AES
     EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
     if (!ctx) {
+        neoc_secure_memzero(derived_key, sizeof(derived_key));  // Clear sensitive data
         return neoc_error_set(NEOC_ERROR_MEMORY, "Failed to create cipher context");
     }
-    
+
     if (EVP_DecryptInit_ex(ctx, EVP_aes_256_ecb(), NULL, derived_key + 32, NULL) != 1) {
         EVP_CIPHER_CTX_free(ctx);
+        neoc_secure_memzero(derived_key, sizeof(derived_key));  // Clear sensitive data
         return neoc_error_set(NEOC_ERROR_CRYPTO, "Failed to init AES");
     }
-    
+
     EVP_CIPHER_CTX_set_padding(ctx, 0); // Disable padding for NEP-2
-    
+
     int len;
-    // int plaintext_len; // Not needed - we know output is 32 bytes
     uint8_t decrypted[48];
-    
+
     if (EVP_DecryptUpdate(ctx, decrypted, &len, encrypted, 32) != 1) {
         EVP_CIPHER_CTX_free(ctx);
+        neoc_secure_memzero(derived_key, sizeof(derived_key));  // Clear sensitive data
+        neoc_secure_memzero(decrypted, sizeof(decrypted));      // Clear sensitive data
         return neoc_error_set(NEOC_ERROR_CRYPTO, "Failed to decrypt");
     }
-    // plaintext_len = len; // Not used
-    
+
     if (EVP_DecryptFinal_ex(ctx, decrypted + len, &len) != 1) {
         EVP_CIPHER_CTX_free(ctx);
+        neoc_secure_memzero(derived_key, sizeof(derived_key));  // Clear sensitive data
+        neoc_secure_memzero(decrypted, sizeof(decrypted));      // Clear sensitive data
         return neoc_error_set(NEOC_ERROR_CRYPTO, "Failed to finalize decryption");
     }
-    // plaintext_len += len; // Not used - we know total is 32 bytes
-    
+
     EVP_CIPHER_CTX_free(ctx);
-    
+
     // XOR with first 32 bytes of derived key to get private key
     memcpy(private_key, decrypted, 32);
     xor_bytes(private_key, derived_key, 32);
+
+    // Clear intermediate decrypted buffer
+    neoc_secure_memzero(decrypted, sizeof(decrypted));
     
     // Verify by checking address hash
     neoc_ec_key_pair_t *key_pair = NULL;
     err = neoc_ec_key_pair_create_from_private_key(private_key, &key_pair);
     if (err != NEOC_SUCCESS) {
+        neoc_secure_memzero(derived_key, sizeof(derived_key));  // Clear sensitive data
         return neoc_error_set(NEOC_ERROR_INVALID_PASSWORD, "Invalid password");
     }
 
     if (!key_pair->public_key) {
+        neoc_secure_memzero(derived_key, sizeof(derived_key));  // Clear sensitive data
         neoc_ec_key_pair_free(key_pair);
         return neoc_error_set(NEOC_ERROR_INVALID_STATE, "Key pair missing public key");
     }
@@ -304,6 +321,7 @@ neoc_error_t neoc_nep2_decrypt(const char *encrypted_key,
     } else if (nep2_data[2] == NEP2_FLAG_UNCOMPRESSED) {
         is_compressed = false;
     } else {
+        neoc_secure_memzero(derived_key, sizeof(derived_key));  // Clear sensitive data
         neoc_ec_key_pair_free(key_pair);
         return neoc_error_set(NEOC_ERROR_INVALID_FORMAT, "Invalid NEP-2 flag byte");
     }
@@ -315,6 +333,7 @@ neoc_error_t neoc_nep2_decrypt(const char *encrypted_key,
     size_t script_len = 2 + pubkey_len + 1 + sizeof(uint32_t);
     uint8_t *verification_script = neoc_malloc(script_len);
     if (!verification_script) {
+        neoc_secure_memzero(derived_key, sizeof(derived_key));  // Clear sensitive data
         neoc_ec_key_pair_free(key_pair);
         return neoc_error_set(NEOC_ERROR_MEMORY, "Failed to allocate verification script");
     }
@@ -329,6 +348,7 @@ neoc_error_t neoc_nep2_decrypt(const char *encrypted_key,
     err = neoc_hash160_from_script(&address_hash, verification_script, script_len);
     neoc_free(verification_script);
     if (err != NEOC_SUCCESS) {
+        neoc_secure_memzero(derived_key, sizeof(derived_key));  // Clear sensitive data
         neoc_ec_key_pair_free(key_pair);
         return err;
     }
@@ -336,6 +356,7 @@ neoc_error_t neoc_nep2_decrypt(const char *encrypted_key,
     char address[NEP2_ADDRESS_BUFFER_LEN];
     err = neoc_hash160_to_address(&address_hash, address, sizeof(address));
     if (err != NEOC_SUCCESS) {
+        neoc_secure_memzero(derived_key, sizeof(derived_key));  // Clear sensitive data
         neoc_ec_key_pair_free(key_pair);
         return err;
     }
@@ -343,15 +364,21 @@ neoc_error_t neoc_nep2_decrypt(const char *encrypted_key,
     uint8_t address_hash_bytes[32];
     err = neoc_sha256_double((const uint8_t*)address, strlen(address), address_hash_bytes);
     if (err != NEOC_SUCCESS) {
+        neoc_secure_memzero(derived_key, sizeof(derived_key));  // Clear sensitive data
         neoc_ec_key_pair_free(key_pair);
         return err;
     }
 
-    if (memcmp(salt, address_hash_bytes, 4) != 0) {
+    // Use constant-time comparison for password verification to prevent timing attacks
+    int salt_match = neoc_secure_memcmp(salt, address_hash_bytes, 4);
+    if (salt_match != 0) {
+        neoc_secure_memzero(derived_key, sizeof(derived_key));  // Clear sensitive data
         neoc_ec_key_pair_free(key_pair);
         return neoc_error_set(NEOC_ERROR_INVALID_PASSWORD, "Invalid password");
     }
 
+    // Clear sensitive data before successful return
+    neoc_secure_memzero(derived_key, sizeof(derived_key));
     neoc_ec_key_pair_free(key_pair);
     return NEOC_SUCCESS;
 }
@@ -415,10 +442,10 @@ bool neoc_nep2_verify_password(const char *encrypted_key,
                                 const neoc_nep2_params_t *params) {
     uint8_t private_key[32];
     neoc_error_t err = neoc_nep2_decrypt(encrypted_key, password, params, private_key, sizeof(private_key));
-    
-    // Clear private key from memory
-    memset(private_key, 0, sizeof(private_key));
-    
+
+    // Securely clear private key from memory
+    neoc_secure_memzero(private_key, sizeof(private_key));
+
     return err == NEOC_SUCCESS;
 }
 

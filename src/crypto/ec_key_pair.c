@@ -88,7 +88,7 @@ neoc_error_t neoc_ec_key_pair_create_from_private_key(const uint8_t *private_key
     // Set private key
     BIGNUM *priv_bn = BN_bin2bn(private_key_bytes, 32, NULL);
     if (!priv_bn || EC_KEY_set_private_key(ec_key, priv_bn) != 1) {
-        BN_free(priv_bn);
+        BN_clear_free(priv_bn);  // Use clear_free for sensitive key material
         EC_GROUP_free(group);
         EC_KEY_free(ec_key);
         neoc_ec_key_pair_free(*key_pair);
@@ -98,20 +98,20 @@ neoc_error_t neoc_ec_key_pair_create_from_private_key(const uint8_t *private_key
     
     // Calculate public key from private key
     EC_POINT *pub_point = EC_POINT_new(group);
-    if (!pub_point || 
+    if (!pub_point ||
         EC_POINT_mul(group, pub_point, priv_bn, NULL, NULL, NULL) != 1) {
         EC_POINT_free(pub_point);
-        BN_free(priv_bn);
+        BN_clear_free(priv_bn);  // Use clear_free for sensitive key material
         EC_GROUP_free(group);
         EC_KEY_free(ec_key);
         neoc_ec_key_pair_free(*key_pair);
         *key_pair = NULL;
         return neoc_error_set(NEOC_ERROR_CRYPTO, "Failed to calculate public key");
     }
-    
+
     if (EC_KEY_set_public_key(ec_key, pub_point) != 1) {
         EC_POINT_free(pub_point);
-        BN_free(priv_bn);
+        BN_clear_free(priv_bn);  // Use clear_free for sensitive key material
         EC_GROUP_free(group);
         EC_KEY_free(ec_key);
         neoc_ec_key_pair_free(*key_pair);
@@ -124,7 +124,7 @@ neoc_error_t neoc_ec_key_pair_create_from_private_key(const uint8_t *private_key
     if (!pkey || EVP_PKEY_set1_EC_KEY(pkey, ec_key) != 1) {
         EVP_PKEY_free(pkey);
         EC_POINT_free(pub_point);
-        BN_free(priv_bn);
+        BN_clear_free(priv_bn);  // Use clear_free for sensitive key material
         EC_GROUP_free(group);
         EC_KEY_free(ec_key);
         neoc_ec_key_pair_free(*key_pair);
@@ -138,7 +138,7 @@ neoc_error_t neoc_ec_key_pair_create_from_private_key(const uint8_t *private_key
     (*key_pair)->public_key = calloc(1, sizeof(neoc_ec_public_key_t));
     if (!(*key_pair)->public_key) {
         EC_POINT_free(pub_point);
-        BN_free(priv_bn);
+        BN_clear_free(priv_bn);  // Use clear_free for sensitive key material
         EC_GROUP_free(group);
         neoc_ec_key_pair_free(*key_pair);
         *key_pair = NULL;
@@ -150,30 +150,30 @@ neoc_error_t neoc_ec_key_pair_create_from_private_key(const uint8_t *private_key
     (*key_pair)->public_key->is_compressed = true;
     
     // Get compressed public key
-    size_t compressed_len = EC_POINT_point2oct(group, pub_point, 
+    size_t compressed_len = EC_POINT_point2oct(group, pub_point,
                                                 POINT_CONVERSION_COMPRESSED,
-                                                (*key_pair)->public_key->compressed, 
+                                                (*key_pair)->public_key->compressed,
                                                 33, NULL);
     if (compressed_len != 33) {
-        BN_free(priv_bn);
+        BN_clear_free(priv_bn);  // Use clear_free for sensitive key material
         neoc_ec_key_pair_free(*key_pair);
         *key_pair = NULL;
         return neoc_error_set(NEOC_ERROR_CRYPTO, "Failed to get compressed public key");
     }
-    
+
     // Get uncompressed public key
     size_t uncompressed_len = EC_POINT_point2oct(group, pub_point,
                                                   POINT_CONVERSION_UNCOMPRESSED,
                                                   (*key_pair)->public_key->uncompressed,
                                                   65, NULL);
     if (uncompressed_len != 65) {
-        BN_free(priv_bn);
+        BN_clear_free(priv_bn);  // Use clear_free for sensitive key material
         neoc_ec_key_pair_free(*key_pair);
         *key_pair = NULL;
         return neoc_error_set(NEOC_ERROR_CRYPTO, "Failed to get uncompressed public key");
     }
-    
-    BN_free(priv_bn);
+
+    BN_clear_free(priv_bn);  // Use clear_free for sensitive key material
     return NEOC_SUCCESS;
 }
 
@@ -181,22 +181,24 @@ neoc_error_t neoc_ec_key_pair_create_random(neoc_ec_key_pair_t **key_pair) {
     if (!key_pair) {
         return neoc_error_set(NEOC_ERROR_INVALID_ARGUMENT, "key_pair is NULL in create_random");
     }
-    
+
     init_openssl();
-    
+
     // Generate random 32-byte private key
     uint8_t private_key[32];
     int rand_result = RAND_bytes(private_key, 32);
     if (rand_result != 1) {
+        // Clear buffer even on failure to prevent partial random data leakage
+        OPENSSL_cleanse(private_key, sizeof(private_key));
         return neoc_error_set(NEOC_ERROR_CRYPTO, "Failed to generate random bytes from OpenSSL");
     }
-    
+
     // Create key pair from private key
     neoc_error_t err = neoc_ec_key_pair_create_from_private_key(private_key, key_pair);
-    
+
     // Clear private key from memory
-    OPENSSL_cleanse(private_key, 32);
-    
+    OPENSSL_cleanse(private_key, sizeof(private_key));
+
     return err;
 }
 

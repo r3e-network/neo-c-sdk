@@ -45,12 +45,18 @@ typedef enum {
     NEOC_ERROR_NOT_FOUND = -17,         ///< Item not found
     NEOC_ERROR_INVALID_SIZE = -18,      ///< Invalid size
     NEOC_ERROR_INVALID_PASSWORD = -19,  ///< Invalid password
-    NEOC_ERROR_INVALID_PARAM = -2,      ///< Alias for INVALID_ARGUMENT
-    NEOC_ERROR_INVALID_DATA = -10,      ///< Alias for INVALID_FORMAT
-    NEOC_ERROR_INVALID_TYPE = -10,      ///< Alias for INVALID_FORMAT
-    NEOC_ERROR_OVERFLOW = -9,           ///< Alias for BUFFER_OVERFLOW
     NEOC_ERROR_NOT_SUPPORTED = -101,    ///< Operation not supported
-    
+
+    /* Deprecated aliases - use canonical names instead */
+    /** @deprecated Use NEOC_ERROR_INVALID_ARGUMENT instead */
+    NEOC_ERROR_INVALID_PARAM = NEOC_ERROR_INVALID_ARGUMENT,
+    /** @deprecated Use NEOC_ERROR_INVALID_FORMAT instead */
+    NEOC_ERROR_INVALID_DATA = NEOC_ERROR_INVALID_FORMAT,
+    /** @deprecated Use NEOC_ERROR_INVALID_FORMAT instead */
+    NEOC_ERROR_INVALID_TYPE = NEOC_ERROR_INVALID_FORMAT,
+    /** @deprecated Use NEOC_ERROR_BUFFER_OVERFLOW instead */
+    NEOC_ERROR_OVERFLOW = NEOC_ERROR_BUFFER_OVERFLOW,
+
     /* Cryptographic errors */
     NEOC_ERROR_CRYPTO = -20,            ///< Generic cryptographic error
     NEOC_ERROR_CRYPTO_INIT = -21,       ///< Cryptographic initialization failed
