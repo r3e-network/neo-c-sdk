@@ -1547,7 +1547,12 @@ void neoc_account_free(neoc_account_t *account) {
     }
     
     neoc_account_clear_encrypted_key(account);
-    
+
+    // Free verification script
+    if (account->verification_script) {
+        neoc_free(account->verification_script);
+    }
+
     // Free multi-sig data if present
     if (account->extra) {
         switch (account->extra_type) {

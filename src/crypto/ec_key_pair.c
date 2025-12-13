@@ -16,16 +16,6 @@
 // NEO uses secp256r1 (NIST P-256)
 #define SECP256R1_NID NID_X9_62_prime256v1
 
-// Initialize OpenSSL once
-static int openssl_initialized = 0;
-
-static void init_openssl(void) {
-    if (!openssl_initialized) {
-        OpenSSL_add_all_algorithms();
-        openssl_initialized = 1;
-    }
-}
-
 // Create EC_GROUP for secp256r1
 static EC_GROUP* create_secp256r1_group(void) {
     return EC_GROUP_new_by_curve_name(SECP256R1_NID);
@@ -50,7 +40,10 @@ neoc_error_t neoc_ec_key_pair_create_from_private_key(const uint8_t *private_key
         return neoc_error_set(NEOC_ERROR_INVALID_ARGUMENT, "key_pair is NULL");
     }
     
-    init_openssl();
+    neoc_error_t err = neoc_crypto_init();
+    if (err != NEOC_SUCCESS) {
+        return err;
+    }
     
     *key_pair = calloc(1, sizeof(neoc_ec_key_pair_t));
     if (!*key_pair) {
@@ -182,7 +175,10 @@ neoc_error_t neoc_ec_key_pair_create_random(neoc_ec_key_pair_t **key_pair) {
         return neoc_error_set(NEOC_ERROR_INVALID_ARGUMENT, "key_pair is NULL in create_random");
     }
 
-    init_openssl();
+    neoc_error_t err = neoc_crypto_init();
+    if (err != NEOC_SUCCESS) {
+        return err;
+    }
 
     // Generate random 32-byte private key
     uint8_t private_key[32];
@@ -194,7 +190,7 @@ neoc_error_t neoc_ec_key_pair_create_random(neoc_ec_key_pair_t **key_pair) {
     }
 
     // Create key pair from private key
-    neoc_error_t err = neoc_ec_key_pair_create_from_private_key(private_key, key_pair);
+    err = neoc_ec_key_pair_create_from_private_key(private_key, key_pair);
 
     // Clear private key from memory
     OPENSSL_cleanse(private_key, sizeof(private_key));
@@ -330,13 +326,15 @@ neoc_error_t neoc_ec_key_pair_import_from_wif(const char *wif, neoc_ec_key_pair_
 
 void neoc_ec_key_pair_free(neoc_ec_key_pair_t *key_pair) {
     if (!key_pair) return;
-    
+
     if (key_pair->private_key) {
+        // EVP_PKEY_set1_EC_KEY increments EC_KEY refcount, so we must free both.
+        // Order matters: free EVP_PKEY first (decrements EC_KEY refcount),
+        // then free EC_KEY (decrements again, reaching 0).
         if (key_pair->private_key->pkey) {
             EVP_PKEY_free(key_pair->private_key->pkey);
-            // EC_KEY is managed by EVP_PKEY, don't free it separately
-        } else if (key_pair->private_key->ec_key) {
-            // Only free EC_KEY if we don't have EVP_PKEY
+        }
+        if (key_pair->private_key->ec_key) {
             EC_KEY_free(key_pair->private_key->ec_key);
         }
         OPENSSL_cleanse(key_pair->private_key->bytes, 32);
@@ -405,7 +403,10 @@ neoc_error_t neoc_ec_public_key_from_bytes(const uint8_t *encoded, size_t encode
         return neoc_error_set(NEOC_ERROR_INVALID_ARGUMENT, "Invalid public key length");
     }
     
-    init_openssl();
+    neoc_error_t err = neoc_crypto_init();
+    if (err != NEOC_SUCCESS) {
+        return err;
+    }
     
     *public_key = calloc(1, sizeof(neoc_ec_public_key_t));
     if (!*public_key) {

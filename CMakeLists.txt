@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(NeoC VERSION 1.1.0 LANGUAGES C)
+project(NeoC VERSION 1.1.1 LANGUAGES C)
 
 # Set C standard
 set(CMAKE_C_STANDARD 11)
@@ -60,6 +60,18 @@ if(NOT CURL_FOUND)
     message(WARNING "libcurl not found - HTTP features will be disabled")
     set(CURL_INCLUDE_DIRS "")
     set(CURL_LIBRARIES "")
+else()
+    include(CheckIncludeFile)
+    set(CMAKE_REQUIRED_INCLUDES ${CURL_INCLUDE_DIRS})
+    check_include_file("curl/curl.h" NEOC_HAVE_CURL_HEADER)
+    unset(CMAKE_REQUIRED_INCLUDES)
+
+    if(NOT NEOC_HAVE_CURL_HEADER)
+        message(WARNING "libcurl library found but curl headers are missing - HTTP features will be disabled")
+        set(CURL_FOUND FALSE)
+        set(CURL_INCLUDE_DIRS "")
+        set(CURL_LIBRARIES "")
+    endif()
 endif()
 
 # Include directories
@@ -81,6 +93,13 @@ endif()
 if(USE_BUNDLED_CJSON)
     include_directories(third_party/cjson)
     list(APPEND SOURCES third_party/cjson/cJSON.c)
+endif()
+
+# Only compile the libcurl-backed URL session when curl headers exist.
+if(CURL_FOUND)
+    list(FILTER SOURCES EXCLUDE REGEX "/src/utils/url_session_nocurl\\.c$")
+else()
+    list(FILTER SOURCES EXCLUDE REGEX "/src/utils/url_session\\.c$")
 endif()
 
 # Remove incomplete RPC response stubs until they are fully implemented

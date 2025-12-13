@@ -88,76 +88,110 @@ static void tearDown(void) {
 // Test building transaction with correct nonce
 static void test_build_transaction_with_correct_nonce(void) {
     printf("Testing build transaction with correct nonce...\n");
-    
-    // Create transaction builder
-    neoc_transaction_builder_t *builder = NULL;
-    neoc_error_t err = neoc_transaction_builder_create(&builder);
-    assert(err == NEOC_SUCCESS);
-    assert(builder != NULL);
-    
-    // Set valid until block
-    err = neoc_transaction_builder_set_valid_until_block(builder, 1000);
-    assert(err == NEOC_SUCCESS);
-    
-    // Set script
-    uint8_t script[] = {1, 2, 3};
-    err = neoc_transaction_builder_set_script(builder, script, sizeof(script));
-    assert(err == NEOC_SUCCESS);
-    
+
     // Test with random nonce
-    uint32_t nonce = rand() % UINT32_MAX;
-    err = neoc_transaction_builder_set_nonce(builder, nonce);
-    assert(err == NEOC_SUCCESS);
     {
+        neoc_transaction_builder_t *builder = NULL;
+        neoc_error_t err = neoc_transaction_builder_create(&builder);
+        assert(err == NEOC_SUCCESS);
+        assert(builder != NULL);
+
+        err = neoc_transaction_builder_set_valid_until_block(builder, 1000);
+        assert(err == NEOC_SUCCESS);
+
+        uint8_t script[] = {1, 2, 3};
+        err = neoc_transaction_builder_set_script(builder, script, sizeof(script));
+        assert(err == NEOC_SUCCESS);
+
+        uint32_t nonce = rand() % UINT32_MAX;
+        err = neoc_transaction_builder_set_nonce(builder, nonce);
+        assert(err == NEOC_SUCCESS);
+
         neoc_signer_t *s = NULL;
         neoc_error_t e = neoc_signer_create_called_by_entry(&account1_hash, &s);
         assert(e == NEOC_SUCCESS);
         e = neoc_transaction_builder_add_signer(builder, s);
         assert(e == NEOC_SUCCESS);
+        neoc_signer_free(s);
+
+        neoc_transaction_t *tx = NULL;
+        err = neoc_transaction_builder_build(builder, &tx);
+        assert(err == NEOC_SUCCESS);
+        assert(tx != NULL);
+        assert(tx->nonce == nonce);
+
+        neoc_transaction_free(tx);
+        neoc_transaction_builder_free(builder);
     }
-    
-    neoc_transaction_t *tx = NULL;
-    err = neoc_transaction_builder_build(builder, &tx);
-    assert(err == NEOC_SUCCESS);
-    assert(tx != NULL);
-    assert(tx->nonce == nonce);
-    
+
     // Test with nonce = 0
-    nonce = 0;
-    err = neoc_transaction_builder_set_nonce(builder, nonce);
-    assert(err == NEOC_SUCCESS);
     {
+        neoc_transaction_builder_t *builder = NULL;
+        neoc_error_t err = neoc_transaction_builder_create(&builder);
+        assert(err == NEOC_SUCCESS);
+
+        err = neoc_transaction_builder_set_valid_until_block(builder, 1000);
+        assert(err == NEOC_SUCCESS);
+
+        uint8_t script[] = {1, 2, 3};
+        err = neoc_transaction_builder_set_script(builder, script, sizeof(script));
+        assert(err == NEOC_SUCCESS);
+
+        uint32_t nonce = 0;
+        err = neoc_transaction_builder_set_nonce(builder, nonce);
+        assert(err == NEOC_SUCCESS);
+
         neoc_signer_t *s = NULL;
         neoc_error_t e = neoc_signer_create_called_by_entry(&account1_hash, &s);
         assert(e == NEOC_SUCCESS);
         e = neoc_transaction_builder_add_signer(builder, s);
         assert(e == NEOC_SUCCESS);
+        neoc_signer_free(s);
+
+        neoc_transaction_t *tx = NULL;
+        err = neoc_transaction_builder_build(builder, &tx);
+        assert(err == NEOC_SUCCESS);
+        assert(tx != NULL);
+        assert(tx->nonce == nonce);
+
+        neoc_transaction_free(tx);
+        neoc_transaction_builder_free(builder);
     }
-    
-    err = neoc_transaction_builder_build(builder, &tx);
-    assert(err == NEOC_SUCCESS);
-    assert(tx != NULL);
-    assert(tx->nonce == nonce);
-    
+
     // Test with max nonce
-    nonce = UINT32_MAX;
-    err = neoc_transaction_builder_set_nonce(builder, nonce);
-    assert(err == NEOC_SUCCESS);
     {
+        neoc_transaction_builder_t *builder = NULL;
+        neoc_error_t err = neoc_transaction_builder_create(&builder);
+        assert(err == NEOC_SUCCESS);
+
+        err = neoc_transaction_builder_set_valid_until_block(builder, 1000);
+        assert(err == NEOC_SUCCESS);
+
+        uint8_t script[] = {1, 2, 3};
+        err = neoc_transaction_builder_set_script(builder, script, sizeof(script));
+        assert(err == NEOC_SUCCESS);
+
+        uint32_t nonce = UINT32_MAX;
+        err = neoc_transaction_builder_set_nonce(builder, nonce);
+        assert(err == NEOC_SUCCESS);
+
         neoc_signer_t *s = NULL;
         neoc_error_t e = neoc_signer_create_called_by_entry(&account1_hash, &s);
         assert(e == NEOC_SUCCESS);
         e = neoc_transaction_builder_add_signer(builder, s);
         assert(e == NEOC_SUCCESS);
+        neoc_signer_free(s);
+
+        neoc_transaction_t *tx = NULL;
+        err = neoc_transaction_builder_build(builder, &tx);
+        assert(err == NEOC_SUCCESS);
+        assert(tx != NULL);
+        assert(tx->nonce == nonce);
+
+        neoc_transaction_free(tx);
+        neoc_transaction_builder_free(builder);
     }
-    
-    err = neoc_transaction_builder_build(builder, &tx);
-    assert(err == NEOC_SUCCESS);
-    assert(tx != NULL);
-    assert(tx->nonce == nonce);
-    
-    neoc_transaction_builder_free(builder);
-    
+
     printf("  ✅ Build transaction with correct nonce test passed\n");
 }
 
