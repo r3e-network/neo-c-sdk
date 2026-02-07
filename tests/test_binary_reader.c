@@ -53,7 +53,7 @@ void test_read_byte(void) {
     err = neoc_binary_reader_read_byte(reader, &value);
     TEST_ASSERT_TRUE(err != NEOC_SUCCESS);
     
-    neoc_free(reader);
+    neoc_binary_reader_free(reader);
 }
 
 void test_read_bytes(void) {
@@ -79,7 +79,7 @@ void test_read_bytes(void) {
     err = neoc_binary_reader_read_bytes(reader, buffer, 1);
     TEST_ASSERT_TRUE(err != NEOC_SUCCESS);
     
-    neoc_free(reader);
+    neoc_binary_reader_free(reader);
 }
 
 void test_read_uint16(void) {
@@ -102,7 +102,7 @@ void test_read_uint16(void) {
     TEST_ASSERT_EQUAL_INT(NEOC_SUCCESS, err);
     TEST_ASSERT_EQUAL_UINT16(0xFFFF, value);
     
-    neoc_free(reader);
+    neoc_binary_reader_free(reader);
 }
 
 void test_read_uint32(void) {
@@ -140,7 +140,7 @@ void test_read_uint32(void) {
     TEST_ASSERT_EQUAL_INT(NEOC_SUCCESS, err);
     TEST_ASSERT_EQUAL_UINT32(44684, value);
     
-    neoc_free(reader);
+    neoc_binary_reader_free(reader);
 }
 
 void test_read_int64(void) {
@@ -178,7 +178,7 @@ void test_read_int64(void) {
     TEST_ASSERT_EQUAL_INT(NEOC_SUCCESS, err);
     TEST_ASSERT_EQUAL_INT64(749675361041LL, value);
     
-    neoc_free(reader);
+    neoc_binary_reader_free(reader);
 }
 
 void test_read_bool(void) {
@@ -210,7 +210,7 @@ void test_read_bool(void) {
     TEST_ASSERT_EQUAL_INT(NEOC_SUCCESS, err);
     TEST_ASSERT_TRUE(value);
     
-    neoc_free(reader);
+    neoc_binary_reader_free(reader);
 }
 
 void test_reader_position(void) {
@@ -242,7 +242,7 @@ void test_reader_position(void) {
     TEST_ASSERT_EQUAL_INT(NEOC_SUCCESS, err);
     TEST_ASSERT_EQUAL_UINT32(5, reader->position);
     
-    neoc_free(reader);
+    neoc_binary_reader_free(reader);
 }
 
 void test_empty_reader(void) {
@@ -254,7 +254,7 @@ void test_empty_reader(void) {
         uint8_t value;
         err = neoc_binary_reader_read_byte(reader, &value);
         TEST_ASSERT_TRUE(err != NEOC_SUCCESS);
-        neoc_free(reader);
+        neoc_binary_reader_free(reader);
     }
 }
 

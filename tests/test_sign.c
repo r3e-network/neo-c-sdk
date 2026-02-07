@@ -293,9 +293,15 @@ void test_invalid_signature_validation(void) {
     memset(short_r, 0, sizeof(short_r));
     memset(valid_s, 0, sizeof(valid_s));
     
-    neoc_signature_data_t* sig_data;
-    neoc_error_t err = neoc_signature_data_create(27, short_r, valid_s, &sig_data);
-    // This should fail or handle gracefully - the API might accept it but validation should catch it
+    neoc_signature_data_t* sig_data = NULL;
+    neoc_error_t err = neoc_signature_data_create_checked(27,
+                                                          short_r,
+                                                          sizeof(short_r),
+                                                          valid_s,
+                                                          sizeof(valid_s),
+                                                          &sig_data);
+    TEST_ASSERT_TRUE(err != NEOC_SUCCESS);
+    TEST_ASSERT_NULL(sig_data);
     
     // Test recovering from invalid signature
     const char* test_message = "A test message";

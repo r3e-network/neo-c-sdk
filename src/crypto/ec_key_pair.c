@@ -378,7 +378,7 @@ neoc_error_t neoc_ec_public_key_from_private(const uint8_t *private_key_bytes,
     }
 
     (*public_key)->point = EC_POINT_dup(key_pair->public_key->point,
-                                         key_pair->public_key->group);
+                                        (*public_key)->group);
     if (!(*public_key)->point) {
         EC_GROUP_free((*public_key)->group);
         free(*public_key);
@@ -391,7 +391,6 @@ neoc_error_t neoc_ec_public_key_from_private(const uint8_t *private_key_bytes,
     memcpy((*public_key)->uncompressed, key_pair->public_key->uncompressed, 65);
     
     // Clean up the key pair while preserving the copied public key
-    key_pair->public_key = NULL;  // Prevent double-free
     neoc_ec_key_pair_free(key_pair);
     
     return NEOC_SUCCESS;

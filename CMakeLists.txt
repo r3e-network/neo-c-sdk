@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(NeoC VERSION 1.1.1 LANGUAGES C)
+project(NeoC VERSION 1.2.0 LANGUAGES C)
 
 # Set C standard
 set(CMAKE_C_STANDARD 11)
@@ -152,6 +152,7 @@ set(NEOC_RESPONSE_SOURCES
     src/protocol/core/response/neo_get_wallet_balance.c
     src/protocol/core/response/neo_validate_address.c
     src/protocol/core/response/neo_find_states.c
+    src/protocol/core/response/neo_get_version.c
 )
 
 foreach(resp ${NEOC_RESPONSE_SOURCES})
@@ -217,6 +218,16 @@ endif()
 export(TARGETS neoc FILE NeoCConfig.cmake)
 
 # Create pkg-config file
+set(NEOC_PKG_REQUIRES "openssl")
+set(_NEOC_PKG_REQUIRES_PRIVATE "")
+if(CJSON_FOUND AND CJSON_LIBRARIES)
+    list(APPEND _NEOC_PKG_REQUIRES_PRIVATE "libcjson")
+endif()
+if(CURL_FOUND)
+    list(APPEND _NEOC_PKG_REQUIRES_PRIVATE "libcurl")
+endif()
+string(JOIN " " NEOC_PKG_REQUIRES_PRIVATE ${_NEOC_PKG_REQUIRES_PRIVATE})
+
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/neoc.pc.in 
                ${CMAKE_CURRENT_BINARY_DIR}/neoc.pc @ONLY)
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/neoc.pc 

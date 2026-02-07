@@ -114,7 +114,7 @@ neoc_express_contract_state_t* neoc_express_contract_state_from_json(const char*
         // Parse manifest fields
         const char *name = neoc_json_get_string(manifest_json, "name");
         if (name) {
-            manifest.name = strdup(name);
+            manifest.name = neoc_strdup(name);
         }
         
         // Parse ABI
@@ -131,7 +131,7 @@ neoc_express_contract_state_t* neoc_express_contract_state_from_json(const char*
                         if (method) {
                             const char *method_name = neoc_json_get_string(method, "name");
                             if (method_name) {
-                                manifest.abi.methods[i].name = strdup(method_name);
+                                manifest.abi.methods[i].name = neoc_strdup(method_name);
                             }
                         }
                     }
@@ -149,7 +149,7 @@ neoc_express_contract_state_t* neoc_express_contract_state_from_json(const char*
                         if (event) {
                             const char *event_name = neoc_json_get_string(event, "name");
                             if (event_name) {
-                                manifest.abi.events[i].name = strdup(event_name);
+                                manifest.abi.events[i].name = neoc_strdup(event_name);
                             }
                         }
                     }
@@ -167,7 +167,7 @@ neoc_express_contract_state_t* neoc_express_contract_state_from_json(const char*
                     neoc_json_t *value = neoc_json_array_get(standards, i);
                     const char *standard = value ? neoc_json_get_string(value, NULL) : NULL;
                     if (standard) {
-                        manifest.supported_standards[i] = strdup(standard);
+                        manifest.supported_standards[i] = neoc_strdup(standard);
                     }
                 }
             }

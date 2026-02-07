@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include "neoc/neoc_error.h"
+#include "neoc/types/contract_parameter_type.h"
 #include "neoc/types/neoc_hash160.h"
 #include "neoc/types/neoc_hash256.h"
 
@@ -12,24 +13,7 @@
 extern "C" {
 #endif
 
-/**
- * @brief Contract parameter types
- */
-typedef enum {
-    NEOC_CONTRACT_PARAM_ANY = 0x00,
-    NEOC_CONTRACT_PARAM_BOOLEAN = 0x10,
-    NEOC_CONTRACT_PARAM_INTEGER = 0x11,
-    NEOC_CONTRACT_PARAM_BYTE_ARRAY = 0x12,
-    NEOC_CONTRACT_PARAM_STRING = 0x13,
-    NEOC_CONTRACT_PARAM_HASH160 = 0x14,
-    NEOC_CONTRACT_PARAM_HASH256 = 0x15,
-    NEOC_CONTRACT_PARAM_PUBLIC_KEY = 0x16,
-    NEOC_CONTRACT_PARAM_SIGNATURE = 0x17,
-    NEOC_CONTRACT_PARAM_ARRAY = 0x20,
-    NEOC_CONTRACT_PARAM_MAP = 0x22,
-    NEOC_CONTRACT_PARAM_INTEROP_INTERFACE = 0x30,
-    NEOC_CONTRACT_PARAM_VOID = 0xFF
-} neoc_contract_param_type_t;
+typedef neoc_contract_parameter_type_t neoc_contract_param_type_t;
 
 /**
  * @brief Contract parameter value union

@@ -577,13 +577,25 @@ neoc_error_t neoc_nep6_wallet_from_json(const char *json_str,
     // Parse name
     cJSON *name = cJSON_GetObjectItem(json_obj, "name");
     if (name && cJSON_IsString(name)) {
-        (*wallet)->name = strdup(name->valuestring);
+        (*wallet)->name = neoc_strdup(name->valuestring);
+        if (!(*wallet)->name) {
+            cJSON_Delete(json_obj);
+            neoc_nep6_wallet_free(*wallet);
+            *wallet = NULL;
+            return neoc_error_set(NEOC_ERROR_MEMORY, "Failed to allocate wallet name");
+        }
     }
     
     // Parse version
     cJSON *version = cJSON_GetObjectItem(json_obj, "version");
     if (version && cJSON_IsString(version)) {
-        (*wallet)->version = strdup(version->valuestring);
+        (*wallet)->version = neoc_strdup(version->valuestring);
+        if (!(*wallet)->version) {
+            cJSON_Delete(json_obj);
+            neoc_nep6_wallet_free(*wallet);
+            *wallet = NULL;
+            return neoc_error_set(NEOC_ERROR_MEMORY, "Failed to allocate wallet version");
+        }
     }
     
     // Parse scrypt parameters
@@ -603,20 +615,46 @@ neoc_error_t neoc_nep6_wallet_from_json(const char *json_str,
     if (accounts && cJSON_IsArray(accounts)) {
         (*wallet)->account_count = cJSON_GetArraySize(accounts);
         (*wallet)->accounts = neoc_calloc((*wallet)->account_count, sizeof(neoc_nep6_account_t*));
+        if (!(*wallet)->accounts && (*wallet)->account_count > 0) {
+            cJSON_Delete(json_obj);
+            neoc_nep6_wallet_free(*wallet);
+            *wallet = NULL;
+            return neoc_error_set(NEOC_ERROR_MEMORY, "Failed to allocate accounts array");
+        }
         
         for (size_t i = 0; i < (*wallet)->account_count; i++) {
             cJSON *account = cJSON_GetArrayItem(accounts, (int)i);
             // Parse each account...
             neoc_nep6_account_t *acc = neoc_calloc(1, sizeof(neoc_nep6_account_t));
+            if (!acc) {
+                cJSON_Delete(json_obj);
+                neoc_nep6_wallet_free(*wallet);
+                *wallet = NULL;
+                return neoc_error_set(NEOC_ERROR_MEMORY, "Failed to allocate account");
+            }
             
             cJSON *address = cJSON_GetObjectItem(account, "address");
             if (address && cJSON_IsString(address)) {
-                acc->address = strdup(address->valuestring);
+                acc->address = neoc_strdup(address->valuestring);
+                if (!acc->address) {
+                    neoc_nep6_account_free(acc);
+                    cJSON_Delete(json_obj);
+                    neoc_nep6_wallet_free(*wallet);
+                    *wallet = NULL;
+                    return neoc_error_set(NEOC_ERROR_MEMORY, "Failed to allocate address");
+                }
             }
             
             cJSON *label = cJSON_GetObjectItem(account, "label");
             if (label && cJSON_IsString(label)) {
-                acc->label = strdup(label->valuestring);
+                acc->label = neoc_strdup(label->valuestring);
+                if (!acc->label) {
+                    neoc_nep6_account_free(acc);
+                    cJSON_Delete(json_obj);
+                    neoc_nep6_wallet_free(*wallet);
+                    *wallet = NULL;
+                    return neoc_error_set(NEOC_ERROR_MEMORY, "Failed to allocate label");
+                }
             }
             
             cJSON *isDefault = cJSON_GetObjectItem(account, "isDefault");
@@ -631,7 +669,14 @@ neoc_error_t neoc_nep6_wallet_from_json(const char *json_str,
             
             cJSON *key = cJSON_GetObjectItem(account, "key");
             if (key && cJSON_IsString(key)) {
-                acc->key = strdup(key->valuestring);
+                acc->key = neoc_strdup(key->valuestring);
+                if (!acc->key) {
+                    neoc_nep6_account_free(acc);
+                    cJSON_Delete(json_obj);
+                    neoc_nep6_wallet_free(*wallet);
+                    *wallet = NULL;
+                    return neoc_error_set(NEOC_ERROR_MEMORY, "Failed to allocate key");
+                }
             }
             
             (*wallet)->accounts[i] = acc;

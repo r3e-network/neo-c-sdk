@@ -19,6 +19,9 @@ typedef struct neoc_contract_nef neoc_contract_nef_t;
 // Free contract NEF
 void neoc_contract_nef_free(neoc_contract_nef_t* nef);
 
+// Dispose contract NEF contents without freeing the struct (for embedded instances).
+void neoc_contract_nef_dispose(neoc_contract_nef_t* nef);
+
 // Clone contract NEF
 neoc_contract_nef_t* neoc_contract_nef_clone(const neoc_contract_nef_t* nef);
 

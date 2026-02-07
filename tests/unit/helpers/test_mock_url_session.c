@@ -1,3 +1,9 @@
+/**
+ * @file test_mock_url_session.c
+ * @brief URL session unit tests (mocked, no network)
+ */
+
+#include <stddef.h>
 #include "unity.h"
 #include <string.h>
 #include "neoc/neoc.h"

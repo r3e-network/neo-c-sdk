@@ -267,6 +267,29 @@ void test_rpc_client_creation(void) {
     neoc_rpc_client_free(client);
 }
 
+void test_rpc_submit_block_handles_missing_http_stack(void) {
+    neoc_rpc_client_t *client = NULL;
+    neoc_error_t err = neoc_rpc_client_create("http://localhost:10332", &client);
+    TEST_ASSERT_EQUAL_INT(NEOC_SUCCESS, err);
+    TEST_ASSERT_NOT_NULL(client);
+
+    const uint8_t block_data[] = {0x01, 0x02, 0x03, 0x04};
+    bool accepted = true;
+
+    err = neoc_rpc_submit_block(client, block_data, sizeof(block_data), &accepted);
+
+    /*
+     * In this test environment libcurl/cJSON may be disabled, so NOT_IMPLEMENTED
+     * is acceptable. The key assertion is that this call must not crash.
+     */
+    TEST_ASSERT_TRUE(err == NEOC_SUCCESS ||
+                     err == NEOC_ERROR_NOT_IMPLEMENTED ||
+                     err == NEOC_ERROR_NETWORK ||
+                     err == NEOC_ERROR_INVALID_FORMAT);
+
+    neoc_rpc_client_free(client);
+}
+
 void test_wallet_nep6_workflow(void) {
     // Test NEP-6 wallet operations
     
@@ -319,6 +342,7 @@ int main(void) {
     RUN_TEST(test_nep17_transfer_workflow);
     RUN_TEST(test_crypto_operations);
     RUN_TEST(test_rpc_client_creation);
+    RUN_TEST(test_rpc_submit_block_handles_missing_http_stack);
     RUN_TEST(test_wallet_nep6_workflow);
     
     return UnityEnd();

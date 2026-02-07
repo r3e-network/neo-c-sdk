@@ -6,8 +6,8 @@
  * using OpenSSL for maximum security and performance.
  */
 
-#ifndef NEOC_HASH_H
-#define NEOC_HASH_H
+#ifndef NEOC_CRYPTO_NEOC_HASH_H
+#define NEOC_CRYPTO_NEOC_HASH_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -126,5 +126,4 @@ bool neoc_crypto_is_initialized(void);
 }
 #endif
 
-#endif /* NEOC_HASH_H */
-
+#endif /* NEOC_CRYPTO_NEOC_HASH_H */

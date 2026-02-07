@@ -294,7 +294,7 @@ void test_wallet_memory_lifecycle(void) {
         size_t count;
         err = neoc_wallet_get_account_count(wallet, &count);
         TEST_ASSERT_EQUAL_INT(NEOC_SUCCESS, err);
-        TEST_ASSERT_EQUAL_INT(NUM_ACCOUNTS, count);
+        TEST_ASSERT_EQUAL_UINT64((uint64_t)NUM_ACCOUNTS, (uint64_t)count);
         
         // Free wallet (should free all accounts)
         neoc_wallet_free(wallet);

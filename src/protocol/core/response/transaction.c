@@ -143,7 +143,7 @@ neoc_error_t neoc_transaction_response_init(neoc_transaction_response_t *respons
     
     // Copy sender
     if (sender) {
-        response->sender = strdup(sender);
+        response->sender = neoc_strdup(sender);
         if (response->sender == NULL) {
             return NEOC_ERROR_OUT_OF_MEMORY;
         }
@@ -151,7 +151,7 @@ neoc_error_t neoc_transaction_response_init(neoc_transaction_response_t *respons
     
     // Copy sys_fee
     if (sys_fee) {
-        response->sys_fee = strdup(sys_fee);
+        response->sys_fee = neoc_strdup(sys_fee);
         if (response->sys_fee == NULL) {
             neoc_free(response->sender);
             response->sender = NULL;
@@ -161,7 +161,7 @@ neoc_error_t neoc_transaction_response_init(neoc_transaction_response_t *respons
     
     // Copy net_fee
     if (net_fee) {
-        response->net_fee = strdup(net_fee);
+        response->net_fee = neoc_strdup(net_fee);
         if (response->net_fee == NULL) {
             neoc_free(response->sender);
             neoc_free(response->sys_fee);
@@ -173,7 +173,7 @@ neoc_error_t neoc_transaction_response_init(neoc_transaction_response_t *respons
     
     // Copy script
     if (script) {
-        response->script = strdup(script);
+        response->script = neoc_strdup(script);
         if (response->script == NULL) {
             neoc_free(response->sender);
             neoc_free(response->sys_fee);

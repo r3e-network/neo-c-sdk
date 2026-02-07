@@ -268,6 +268,21 @@ neoc_error_t neoc_signature_data_create(uint8_t v,
     return NEOC_SUCCESS;
 }
 
+neoc_error_t neoc_signature_data_create_checked(uint8_t v,
+                                                const uint8_t *r,
+                                                size_t r_len,
+                                                const uint8_t *s,
+                                                size_t s_len,
+                                                neoc_signature_data_t **sig_data) {
+    if (!r || !s || !sig_data) {
+        return neoc_error_set(NEOC_ERROR_INVALID_ARGUMENT, "Invalid arguments");
+    }
+    if (r_len != NEOC_SIGNATURE_COMPONENT_SIZE || s_len != NEOC_SIGNATURE_COMPONENT_SIZE) {
+        return neoc_error_set(NEOC_ERROR_INVALID_LENGTH, "Signature components must be 32 bytes");
+    }
+    return neoc_signature_data_create(v, r, s, sig_data);
+}
+
 neoc_error_t neoc_signature_data_from_bytes(const uint8_t *signature,
                                             size_t signature_length,
                                             neoc_signature_data_t **sig_data) {

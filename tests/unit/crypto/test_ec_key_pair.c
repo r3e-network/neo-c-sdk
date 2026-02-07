@@ -1,5 +1,5 @@
 /**
- * @file test_e_c_key_pair.c
+ * @file test_ec_key_pair.c
  * @brief Unit tests converted from ECKeyPairTests.swift
  */
 

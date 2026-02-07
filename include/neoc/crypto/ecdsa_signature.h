@@ -72,6 +72,19 @@ neoc_error_t neoc_signature_data_create(uint8_t v,
                                         const uint8_t *s,
                                         neoc_signature_data_t **sig_data);
 
+/**
+ * @brief Create signature data while validating component sizes.
+ *
+ * This helper avoids undefined behaviour when callers may not have fixed-size
+ * 32-byte buffers for @p r and @p s.
+ */
+neoc_error_t neoc_signature_data_create_checked(uint8_t v,
+                                                const uint8_t *r,
+                                                size_t r_len,
+                                                const uint8_t *s,
+                                                size_t s_len,
+                                                neoc_signature_data_t **sig_data);
+
 neoc_error_t neoc_signature_data_from_bytes(const uint8_t *signature,
                                             size_t signature_length,
                                             neoc_signature_data_t **sig_data);

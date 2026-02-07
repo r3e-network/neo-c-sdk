@@ -229,6 +229,22 @@ void neoc_diagnostics_free(
     neoc_free(diagnostics);
 }
 
+neoc_diagnostics_t* neoc_diagnostics_clone(const neoc_diagnostics_t *diagnostics) {
+    if (!diagnostics) {
+        return NULL;
+    }
+
+    neoc_diagnostics_t *clone = NULL;
+    neoc_error_t err = neoc_diagnostics_create(diagnostics->invoked_contracts,
+                                               diagnostics->storage_changes,
+                                               diagnostics->storage_changes_count,
+                                               &clone);
+    if (err != NEOC_SUCCESS) {
+        return NULL;
+    }
+    return clone;
+}
+
 #ifdef HAVE_CJSON
 static neoc_error_t parse_invoked_contract_json(neoc_json_t *json, neoc_invoked_contract_t **out) {
     if (!json || !out) {

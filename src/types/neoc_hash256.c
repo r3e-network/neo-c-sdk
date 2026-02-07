@@ -127,7 +127,8 @@ neoc_error_t neoc_hash256_from_data_hash(neoc_hash256_t* hash, const uint8_t* da
         return NEOC_ERROR_NULL_POINTER;
     }
     
-    return neoc_hash256(data, data_length, hash->data);
+    /* Single SHA-256 of input data. */
+    return neoc_sha256(data, data_length, hash->data);
 }
 
 neoc_error_t neoc_hash256_from_data_double_hash(neoc_hash256_t* hash, const uint8_t* data, size_t data_length) {

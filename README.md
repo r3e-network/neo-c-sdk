@@ -6,11 +6,12 @@ A comprehensive C library for Neo blockchain development providing core function
 
 - **GitHub**: https://github.com/r3e-network/NeoC
 - **Status**: Production Ready
-- **Version**: 1.1.0
+- **Version**: 1.2.0
 
 ## Features
 
 ### Core Types
+
 - **Hash160**: 20-byte hashes for script hashes and addresses
 - **Hash256**: 32-byte hashes for transactions and blocks
 - **Bytes**: Dynamic byte array management with memory safety
@@ -18,6 +19,7 @@ A comprehensive C library for Neo blockchain development providing core function
 - **ECDSASignature**: Digital signature operations
 
 ### Cryptographic Operations
+
 - SHA-256 and double SHA-256 hashing
 - RIPEMD-160 hashing
 - Hash160 computation (SHA-256 + RIPEMD-160)
@@ -27,28 +29,33 @@ A comprehensive C library for Neo blockchain development providing core function
 - OpenSSL-based implementation for security and performance
 
 ### Encoding Utilities
+
 - **Hexadecimal**: Encode/decode binary data to/from hex strings
 - **Base58**: Bitcoin-style Base58 encoding/decoding
 - **Base58Check**: Base58 with checksum validation
 - **Base64**: Standard and URL-safe Base64 encoding/decoding
 
 ### Neo Blockchain Features
+
 - **Wallet Management**: Account creation, WIF import/export, NEP-6 wallet support
 - **Transaction Building**: Complete transaction construction and signing
 - **Smart Contracts**: NEP-17 (fungible tokens), NEP-11 (non-fungible tokens)
 - **Name Service**: Neo Name Service (NNS) integration
-- **RPC Client**: Full Neo node RPC client implementation
-- **RPC Coverage**: Includes calculate network fee, send raw transaction, token transfers/unspents, oracle requests, populated blocks, plugin listing, record state, transaction signer/send token, NEP-17 contract metadata, and Neo witness conversion.
-- **Response Aliases**: Convenience response helpers (block count/hash, connection count, boolean/string/transaction/address lists) restored for parity with NeoSwift.
+- **RPC Client**: Full Neo node RPC client with 45+ methods including block/transaction queries, contract invocation, NEP-17/NEP-11 token queries, state proofs, iterator traversal, and network fee calculation.
+- **Native Contracts**: Complete wrappers for all 9 Neo N3 native contracts — NeoToken, GasToken, PolicyContract, OracleContract, LedgerContract, ContractManagement, CryptoLib, StdLib, and RoleManagement.
+- **Neo N3 v3.9.1**: Full protocol compatibility including whitelist fee contracts, updated version response fields, and policy contract extensions.
 - **Protocol Support**: Neo protocol message handling
 
 ### Memory Management
+
 - Safe memory allocation with leak detection (debug mode)
 - Secure memory clearing for sensitive data
 - Custom allocator support
 - Thread-safe operations
+- Ownership rule of thumb: free opaque objects with their `*_free()` function; free returned buffers/strings with `neoc_free()`.
 
 ### Error Handling
+
 - Comprehensive error codes and messages
 - Thread-local error information
 - Stack trace support for debugging
@@ -102,6 +109,7 @@ sudo make install
 ## Building
 
 ### Prerequisites
+
 - CMake 3.16 or later
 - C99-compatible compiler (GCC 7+, Clang 3.4+, MSVC 2015+)
 - OpenSSL 1.1.1+ or 3.x development libraries
@@ -159,7 +167,7 @@ int main(void) {
     if (neoc_init() != NEOC_SUCCESS) {
         return 1;
     }
-    
+
     // Create Hash160 from hex string
     neoc_hash160_t hash;
     if (neoc_hash160_from_hex(&hash, "17694821c6e3ea8b7a7d770952e7de86c73d94c3") == NEOC_SUCCESS) {
@@ -169,7 +177,7 @@ int main(void) {
             printf("Address: %s\n", address);
         }
     }
-    
+
     // Cleanup
     neoc_cleanup();
     return 0;
@@ -200,12 +208,12 @@ if (account) {
     char wif[64];
     neoc_account_to_wif(account, wif, sizeof(wif));
     printf("WIF: %s\n", wif);
-    
+
     // Get address
     char address[64];
     neoc_account_get_address(account, address, sizeof(address));
     printf("Address: %s\n", address);
-    
+
     neoc_account_free(account);
 }
 ```
@@ -226,13 +234,13 @@ if (builder) {
     // Add transfer
     neoc_hash160_t to_address;
     neoc_hash160_from_address(&to_address, "NQrFVj6NvW5z2wKb3m8X9pL1nR4sT7uY6v");
-    
+
     neoc_error_t err = neoc_transaction_builder_add_transfer(
-        builder, 
-        &to_address, 
+        builder,
+        &to_address,
         100000000  // 1 NEO (in satoshis)
     );
-    
+
     if (err == NEOC_SUCCESS) {
         // Build transaction
         neoc_transaction_t* tx = neoc_transaction_builder_build(builder);
@@ -246,7 +254,7 @@ if (builder) {
             neoc_transaction_free(tx);
         }
     }
-    
+
     neoc_transaction_builder_free(builder);
 }
 ```
@@ -269,6 +277,26 @@ neoc_free(base58);
 char* base64 = neoc_base64_encode_alloc(data, 4);
 printf("Base64: %s\n", base64);
 neoc_free(base64);
+```
+
+### Binary Serialization Example
+
+```c
+neoc_binary_writer_t *writer = NULL;
+if (neoc_binary_writer_create(64, true, &writer) == NEOC_SUCCESS) {
+    neoc_binary_writer_write_uint32(writer, 12345);
+
+    uint8_t *serialized = NULL;
+    size_t serialized_len = 0;
+    if (neoc_binary_writer_to_array(writer, &serialized, &serialized_len) == NEOC_SUCCESS) {
+        // When writer is empty: serialized_len == 0 and serialized == NULL
+        if (serialized) {
+            neoc_free(serialized);
+        }
+    }
+
+    neoc_binary_writer_free(writer);
+}
 ```
 
 ## Examples
@@ -302,7 +330,15 @@ make test
 ./tests/test_wallet
 ```
 
-Debug builds include memory leak detection:
+Enable extended unit tests for native contract coverage:
+
+```bash
+cmake -DCMAKE_BUILD_TYPE=Debug -DBUILD_EXTRA_UNIT_TESTS=ON ..
+make
+ctest --output-on-failure
+```
+
+Debug builds include memory leak detection and AddressSanitizer:
 
 ```bash
 cmake -DCMAKE_BUILD_TYPE=Debug ..
@@ -439,6 +475,7 @@ if (result != NEOC_SUCCESS) {
 ## Thread Safety
 
 NeoC is designed to be thread-safe:
+
 - Memory management functions are thread-safe
 - Error handling uses thread-local storage
 - Crypto functions can be used from multiple threads
@@ -485,6 +522,7 @@ Licensed under the MIT License (see `LICENSE`).
 ## Support
 
 For issues and questions:
+
 - Check the examples in `examples/`
 - Review test cases in `tests/`
 - Consult the API documentation in header files

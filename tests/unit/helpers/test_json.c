@@ -1,5 +1,5 @@
 /**
- * @file test_j_s_o_n.c
+ * @file test_json.c
  * @brief Unit tests converted from JSON.swift
  */
 

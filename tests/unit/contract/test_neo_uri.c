@@ -1,3 +1,9 @@
+/**
+ * @file test_neo_uri.c
+ * @brief Unit tests for Neo URI parsing helpers
+ */
+
+#include <stddef.h>
 #include "unity.h"
 #include <string.h>
 #include <stdlib.h>

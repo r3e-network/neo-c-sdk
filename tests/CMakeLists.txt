@@ -42,6 +42,9 @@ set(THREADS_PREFER_PTHREAD_FLAG TRUE)
 # Find OpenSSL (required for crypto operations)
 find_package(OpenSSL REQUIRED)
 
+# libcurl is optional: only required when the NeoC library was built with HTTP support.
+find_package(CURL QUIET)
+
 # Prefer linking against the in-tree target when building NeoC from source.
 if(TARGET neoc)
     include_directories(${CMAKE_SOURCE_DIR}/include)
@@ -53,7 +56,7 @@ else()
         message(FATAL_ERROR "NeoC headers/library not found. Build NeoC first or install the SDK.")
     endif()
     include_directories(${NEOC_INCLUDE_DIR})
-    set(NEOC_LIBS ${NEOC_LIBRARY})
+    set(NEOC_LIBS ${NEOC_LIBRARY} ${CURL_LIBRARIES})
 endif()
 
 # Unity testing framework
@@ -188,10 +191,8 @@ target_link_libraries(test_neo_c_client unity ${NEOC_LIBS} OpenSSL::SSL OpenSSL:
 add_executable(test_new_rpc_responses test_new_rpc_responses.c)
 target_link_libraries(test_new_rpc_responses unity ${NEOC_LIBS} OpenSSL::SSL OpenSSL::Crypto)
 
-find_package(CURL REQUIRED)
-
 add_executable(test_integration test_integration.c)
-target_link_libraries(test_integration unity ${NEOC_LIBS} OpenSSL::SSL OpenSSL::Crypto ${CURL_LIBRARIES})
+target_link_libraries(test_integration unity ${NEOC_LIBS} OpenSSL::SSL OpenSSL::Crypto)
 
 add_executable(test_find_states_response test_find_states_response.c)
 target_link_libraries(test_find_states_response unity ${NEOC_LIBS} OpenSSL::SSL OpenSSL::Crypto)
@@ -497,7 +498,7 @@ set_tests_properties(MathUtilTests PROPERTIES
 
 # BIP-39 test vectors
 add_executable(test_bip39_vectors test_bip39_vectors.c)
-target_link_libraries(test_bip39_vectors unity ${NEOC_LIBS} OpenSSL::SSL OpenSSL::Crypto ${CURL_LIBRARIES})
+target_link_libraries(test_bip39_vectors unity ${NEOC_LIBS} OpenSSL::SSL OpenSSL::Crypto)
 add_test(NAME BIP39VectorTests COMMAND test_bip39_vectors)
 set_tests_properties(BIP39VectorTests PROPERTIES 
     TIMEOUT 60

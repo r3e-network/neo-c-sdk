@@ -1,10 +1,10 @@
 /**
- * @file n_n_s_name.h
+ * @file nns_name.h
  * @brief NNS Name record interface
  */
 
-#ifndef NEOC_N_N_S_NAME_H
-#define NEOC_N_N_S_NAME_H
+#ifndef NEOC_NNS_NAME_H
+#define NEOC_NNS_NAME_H
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -74,4 +74,4 @@ void neoc_nns_name_free(neoc_nns_name_t *nns_name);
 }
 #endif
 
-#endif // NEOC_N_N_S_NAME_H
+#endif // NEOC_NNS_NAME_H

@@ -1,80 +1,63 @@
 /**
  * @file contract_parameter.h
- * @brief Header converted from ContractParameter.swift
+ * @brief Backwards compatible contract parameter helpers
+ *
+ * The NeoC SDK uses the canonical contract parameter representation from
+ * `neoc/contract/contract_parameter.h`. This header preserves older helper
+ * creation APIs that were previously exposed under `neoc/types/`.
  */
 
-#ifndef NEOC_CONTRACT_PARAMETER_H
-#define NEOC_CONTRACT_PARAMETER_H
+#ifndef NEOC_TYPES_CONTRACT_PARAMETER_H
+#define NEOC_TYPES_CONTRACT_PARAMETER_H
 
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
+
 #include "neoc/neoc_error.h"
+#include "neoc/types/contract_parameter_type.h"
+#include "neoc/contract/contract_parameter.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 /**
- * Contract parameter types
- */
-typedef enum {
-    NEOC_CONTRACT_PARAM_TYPE_ANY = 0x00,
-    NEOC_CONTRACT_PARAM_TYPE_BOOLEAN = 0x10,
-    NEOC_CONTRACT_PARAM_TYPE_INTEGER = 0x11,
-    NEOC_CONTRACT_PARAM_TYPE_BYTE_ARRAY = 0x12,
-    NEOC_CONTRACT_PARAM_TYPE_STRING = 0x13,
-    NEOC_CONTRACT_PARAM_TYPE_HASH160 = 0x14,
-    NEOC_CONTRACT_PARAM_TYPE_HASH256 = 0x15,
-    NEOC_CONTRACT_PARAM_TYPE_PUBLIC_KEY = 0x16,
-    NEOC_CONTRACT_PARAM_TYPE_SIGNATURE = 0x17,
-    NEOC_CONTRACT_PARAM_TYPE_ARRAY = 0x20,
-    NEOC_CONTRACT_PARAM_TYPE_MAP = 0x22,
-    NEOC_CONTRACT_PARAM_TYPE_INTEROP_INTERFACE = 0x30,
-    NEOC_CONTRACT_PARAM_TYPE_VOID = 0xFF
-} neoc_contract_parameter_type_t;
-
-/**
- * Contract parameter structure
- */
-typedef struct neoc_contract_parameter {
-    neoc_contract_parameter_type_t type;
-    char *name;
-    void *value;
-    size_t value_size;
-} neoc_contract_parameter_t;
-
-/**
- * Create contract parameter
+ * @brief Legacy helper to create a contract parameter from a raw value.
+ *
+ * This function exists for backwards compatibility. For new code, prefer the
+ * typed constructors in `neoc/contract/contract_parameter.h`.
+ *
  * @param type Parameter type
- * @param name Parameter name (optional)
- * @param value Parameter value
- * @param value_size Value size
- * @param param Output parameter
- * @return Error code
+ * @param name Optional parameter name
+ * @param value Parameter value bytes or string (depending on type)
+ * @param value_size Size of @p value
+ * @param param Output parameter (caller must free with neoc_contract_parameter_free)
+ * @return NEOC_SUCCESS on success, error code otherwise
  */
 neoc_error_t neoc_contract_parameter_create(neoc_contract_parameter_type_t type,
-                                            const char *name,
-                                            const void *value,
-                                            size_t value_size,
-                                            neoc_contract_parameter_t **param);
+                                           const char *name,
+                                           const void *value,
+                                           size_t value_size,
+                                           neoc_contract_parameter_t **param);
 
 /**
- * Free contract parameter
- * @param param Parameter to free
+ * @brief Free a contract parameter allocated by neoc_contract_parameter_create.
+ *
+ * This is an alias for neoc_contract_param_free().
  */
 void neoc_contract_parameter_free(neoc_contract_parameter_t *param);
 
-/**
- * Helper functions for creating specific parameter types
- */
 neoc_error_t neoc_contract_parameter_create_bool(bool value, neoc_contract_parameter_t **param);
 neoc_error_t neoc_contract_parameter_create_int(int64_t value, neoc_contract_parameter_t **param);
 neoc_error_t neoc_contract_parameter_create_string(const char *value, neoc_contract_parameter_t **param);
-neoc_error_t neoc_contract_parameter_create_bytes(const uint8_t *value, size_t len, neoc_contract_parameter_t **param);
+neoc_error_t neoc_contract_parameter_create_bytes(const uint8_t *value,
+                                                  size_t len,
+                                                  neoc_contract_parameter_t **param);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif // NEOC_CONTRACT_PARAMETER_H
+#endif /* NEOC_TYPES_CONTRACT_PARAMETER_H */
+

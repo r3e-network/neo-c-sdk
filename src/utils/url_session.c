@@ -13,7 +13,8 @@
 #include "neoc/neoc_memory.h"
 
 #include <curl/curl.h>
-#include <stdarg.h>
+#include <stdio.h>
+#include <stdatomic.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -22,15 +23,31 @@ struct neoc_url_session_t {
 };
 
 static neoc_error_t ensure_curl_init(void) {
-    static int initialized = 0;
-    if (!initialized) {
+    static atomic_int curl_init_state = ATOMIC_VAR_INIT(0); /* 0=uninit, 1=initializing, 2=initialized */
+
+    int state = atomic_load(&curl_init_state);
+    if (state == 2) {
+        return NEOC_SUCCESS;
+    }
+
+    int expected = 0;
+    if (atomic_compare_exchange_strong(&curl_init_state, &expected, 1)) {
         CURLcode rc = curl_global_init(CURL_GLOBAL_DEFAULT);
         if (rc != CURLE_OK) {
+            atomic_store(&curl_init_state, 0);
             return neoc_error_set(NEOC_ERROR_NETWORK, "Failed to initialise libcurl");
         }
-        initialized = 1;
+        atomic_store(&curl_init_state, 2);
+        return NEOC_SUCCESS;
     }
-    return NEOC_SUCCESS;
+
+    while ((state = atomic_load(&curl_init_state)) == 1) {
+        /* spin */
+    }
+
+    return state == 2
+        ? NEOC_SUCCESS
+        : neoc_error_set(NEOC_ERROR_NETWORK, "Failed to initialise libcurl");
 }
 
 static void free_headers(neoc_http_header_t *headers, size_t count) {
@@ -485,4 +502,17 @@ neoc_error_t neoc_url_session_get_default_config(neoc_url_session_config_t *conf
     config->follow_redirects = true;
     config->verify_ssl = true;
     return NEOC_SUCCESS;
+}
+
+const char* neoc_http_method_to_string(neoc_http_method_t method) {
+    switch (method) {
+        case NEOC_HTTP_GET: return "GET";
+        case NEOC_HTTP_POST: return "POST";
+        case NEOC_HTTP_PUT: return "PUT";
+        case NEOC_HTTP_DELETE: return "DELETE";
+        case NEOC_HTTP_HEAD: return "HEAD";
+        case NEOC_HTTP_OPTIONS: return "OPTIONS";
+        case NEOC_HTTP_PATCH: return "PATCH";
+        default: return "UNKNOWN";
+    }
 }

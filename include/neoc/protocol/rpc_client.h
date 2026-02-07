@@ -62,6 +62,11 @@ typedef struct neoc_rpc_response_t neoc_rpc_response_t;
 #define RPC_GET_NEP11_BALANCES "getnep11balances"
 #define RPC_GET_NEP11_TRANSFERS "getnep11transfers"
 #define RPC_GET_NEP11_PROPERTIES "getnep11properties"
+#define RPC_VALIDATE_ADDRESS "validateaddress"
+#define RPC_GET_CANDIDATES "getcandidates"
+#define RPC_CALCULATE_NETWORK_FEE "calculatenetworkfee"
+#define RPC_TRAVERSE_ITERATOR "traverseiterator"
+#define RPC_TERMINATE_SESSION "terminatesession"
 
 /**
  * @brief Block information
@@ -387,6 +392,158 @@ neoc_error_t neoc_rpc_get_state_height(neoc_rpc_client_t *client, uint32_t *heig
  * @return NEOC_SUCCESS on success, error code otherwise
  */
 neoc_error_t neoc_rpc_get_native_contracts(neoc_rpc_client_t *client, char **contracts);
+
+/**
+ * @brief Get block header by hash
+ */
+neoc_error_t neoc_rpc_get_block_header(neoc_rpc_client_t *client,
+                                        const neoc_hash256_t *hash,
+                                        bool verbose,
+                                        char **header);
+
+/**
+ * @brief Get block header count
+ */
+neoc_error_t neoc_rpc_get_block_header_count(neoc_rpc_client_t *client, uint32_t *count);
+
+/**
+ * @brief Invoke contract verify
+ */
+neoc_error_t neoc_rpc_invoke_contract_verify(neoc_rpc_client_t *client,
+                                              const neoc_hash160_t *script_hash,
+                                              const char *params,
+                                              const char *signers,
+                                              char **result);
+
+/**
+ * @brief Get unclaimed GAS for an address
+ */
+neoc_error_t neoc_rpc_get_unclaimed_gas(neoc_rpc_client_t *client,
+                                         const char *address,
+                                         char **unclaimed);
+
+/**
+ * @brief Calculate network fee for a transaction
+ */
+neoc_error_t neoc_rpc_calculate_network_fee(neoc_rpc_client_t *client,
+                                             const uint8_t *tx_data,
+                                             size_t tx_size,
+                                             char **fee);
+
+/**
+ * @brief Get NEP-17 transfer history
+ */
+neoc_error_t neoc_rpc_get_nep17_transfers(neoc_rpc_client_t *client,
+                                           const char *address,
+                                           char **transfers);
+
+/**
+ * @brief Get NEP-11 balances
+ */
+neoc_error_t neoc_rpc_get_nep11_balances(neoc_rpc_client_t *client,
+                                          const char *address,
+                                          char **balances);
+
+/**
+ * @brief Get NEP-11 transfer history
+ */
+neoc_error_t neoc_rpc_get_nep11_transfers(neoc_rpc_client_t *client,
+                                           const char *address,
+                                           char **transfers);
+
+/**
+ * @brief Get NEP-11 token properties
+ */
+neoc_error_t neoc_rpc_get_nep11_properties(neoc_rpc_client_t *client,
+                                            const neoc_hash160_t *script_hash,
+                                            const char *token_id,
+                                            char **properties);
+
+/**
+ * @brief List plugins
+ */
+neoc_error_t neoc_rpc_list_plugins(neoc_rpc_client_t *client, char **plugins);
+
+/**
+ * @brief Submit a block
+ */
+neoc_error_t neoc_rpc_submit_block(neoc_rpc_client_t *client,
+                                    const uint8_t *block_data,
+                                    size_t block_size,
+                                    bool *accepted);
+
+/**
+ * @brief Validate an address
+ */
+neoc_error_t neoc_rpc_validate_address(neoc_rpc_client_t *client,
+                                        const char *address,
+                                        bool *is_valid);
+
+/**
+ * @brief Get candidates
+ */
+neoc_error_t neoc_rpc_get_candidates(neoc_rpc_client_t *client, char **candidates);
+
+/**
+ * @brief Traverse an iterator (session-based)
+ */
+neoc_error_t neoc_rpc_traverse_iterator(neoc_rpc_client_t *client,
+                                         const char *session_id,
+                                         const char *iterator_id,
+                                         uint32_t count,
+                                         char **items);
+
+/**
+ * @brief Terminate a session
+ */
+neoc_error_t neoc_rpc_terminate_session(neoc_rpc_client_t *client,
+                                         const char *session_id,
+                                         bool *success);
+
+/**
+ * @brief Get state root by index
+ */
+neoc_error_t neoc_rpc_get_state_root(neoc_rpc_client_t *client,
+                                      uint32_t index,
+                                      char **state_root);
+
+/**
+ * @brief Get state value
+ */
+neoc_error_t neoc_rpc_get_state(neoc_rpc_client_t *client,
+                                 const neoc_hash256_t *root_hash,
+                                 const neoc_hash160_t *script_hash,
+                                 const uint8_t *key,
+                                 size_t key_size,
+                                 char **value);
+
+/**
+ * @brief Find states matching a prefix
+ */
+neoc_error_t neoc_rpc_find_states(neoc_rpc_client_t *client,
+                                   const neoc_hash256_t *root_hash,
+                                   const neoc_hash160_t *script_hash,
+                                   const uint8_t *prefix,
+                                   size_t prefix_size,
+                                   char **states);
+
+/**
+ * @brief Get proof for a storage key
+ */
+neoc_error_t neoc_rpc_get_proof(neoc_rpc_client_t *client,
+                                 const neoc_hash256_t *root_hash,
+                                 const neoc_hash160_t *script_hash,
+                                 const uint8_t *key,
+                                 size_t key_size,
+                                 char **proof);
+
+/**
+ * @brief Verify a state proof
+ */
+neoc_error_t neoc_rpc_verify_proof(neoc_rpc_client_t *client,
+                                    const neoc_hash256_t *root_hash,
+                                    const char *proof,
+                                    char **value);
 
 /**
  * @brief Free RPC client

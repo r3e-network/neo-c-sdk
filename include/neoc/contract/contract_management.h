@@ -1,80 +1,83 @@
 /**
  * @file contract_management.h
- * @brief Contract management interface
+ * @brief NEO ContractManagement native contract wrapper
  */
 
-#ifndef NEOC_CONTRACT_MANAGEMENT_H
-#define NEOC_CONTRACT_MANAGEMENT_H
+#ifndef NEOC_CONTRACT_MANAGEMENT_H_GUARD
+#define NEOC_CONTRACT_MANAGEMENT_H_GUARD
 
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include "neoc/neoc_error.h"
 #include "neoc/types/neoc_hash160.h"
-#include "neoc/protocol/contract_response_types.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-// Forward declarations - actual definitions in protocol/contract_response_types.h
-typedef struct neoc_contract_nef neoc_contract_nef_t;
-typedef struct neoc_contract_manifest neoc_contract_manifest_t;
-typedef struct neoc_contract_state neoc_contract_state_t;
-
 /**
- * Contract management native contract
+ * @brief ContractManagement contract opaque type
  */
 typedef struct neoc_contract_management neoc_contract_management_t;
 
 /**
- * Create contract management instance
+ * @brief Create ContractManagement contract instance
+ *
+ * @param mgmt Output contract management instance (caller must free)
+ * @return NEOC_SUCCESS on success, error code otherwise
  */
 neoc_error_t neoc_contract_management_create(neoc_contract_management_t **mgmt);
 
 /**
- * Deploy a contract
+ * @brief Get minimum deployment fee
+ *
+ * @param mgmt ContractManagement instance
+ * @param fee Output minimum deployment fee in GAS fractions
+ * @return NEOC_SUCCESS on success, error code otherwise
  */
-neoc_error_t neoc_contract_management_deploy(neoc_contract_management_t *mgmt,
-                                               const neoc_contract_nef_t *nef,
-                                               const neoc_contract_manifest_t *manifest,
-                                               neoc_contract_state_t **contract);
+neoc_error_t neoc_contract_management_get_minimum_deployment_fee(
+    neoc_contract_management_t *mgmt, uint64_t *fee);
 
 /**
- * Update a contract
+ * @brief Check if a contract has a specific method
+ *
+ * Builds a script that invokes the "hasMethod" operation on the
+ * ContractManagement native contract.
+ *
+ * @param mgmt ContractManagement instance
+ * @param hash Script hash of the contract to query
+ * @param method Method name to check
+ * @param param_count Expected parameter count of the method
+ * @param script Output script bytes (caller must free)
+ * @param script_len Output script length
+ * @return NEOC_SUCCESS on success, error code otherwise
  */
-neoc_error_t neoc_contract_management_update(neoc_contract_management_t *mgmt,
-                                              const neoc_hash160_t *hash,
-                                              const neoc_contract_nef_t *nef,
-                                              const neoc_contract_manifest_t *manifest);
+neoc_error_t neoc_contract_management_has_method(
+    neoc_contract_management_t *mgmt, const neoc_hash160_t *hash,
+    const char *method, uint32_t param_count,
+    uint8_t **script, size_t *script_len);
 
 /**
- * Destroy a contract
+ * @brief Get contract state by script hash
+ *
+ * Builds a script that invokes the "getContract" operation on the
+ * ContractManagement native contract.
+ *
+ * @param mgmt ContractManagement instance
+ * @param hash Script hash of the contract to query
+ * @param script Output script bytes (caller must free)
+ * @param script_len Output script length
+ * @return NEOC_SUCCESS on success, error code otherwise
  */
-neoc_error_t neoc_contract_management_destroy(neoc_contract_management_t *mgmt,
-                                               const neoc_hash160_t *hash);
+neoc_error_t neoc_contract_management_get_contract(
+    neoc_contract_management_t *mgmt, const neoc_hash160_t *hash,
+    uint8_t **script, size_t *script_len);
 
 /**
- * Get contract by hash
- */
-neoc_error_t neoc_contract_management_get_contract(neoc_contract_management_t *mgmt,
-                                                    const neoc_hash160_t *hash,
-                                                    neoc_contract_state_t **contract);
-
-/**
- * Check if contract exists
- */
-neoc_error_t neoc_contract_management_has_contract(neoc_contract_management_t *mgmt,
-                                                    const neoc_hash160_t *hash,
-                                                    bool *exists);
-
-/**
- * Free contract state
- */
-void neoc_contract_state_free(neoc_contract_state_t *contract);
-
-/**
- * Free contract management
+ * @brief Free ContractManagement contract instance
+ *
+ * @param mgmt Instance to free
  */
 void neoc_contract_management_free(neoc_contract_management_t *mgmt);
 
@@ -82,4 +85,4 @@ void neoc_contract_management_free(neoc_contract_management_t *mgmt);
 }
 #endif
 
-#endif // NEOC_CONTRACT_MANAGEMENT_H
+#endif // NEOC_CONTRACT_MANAGEMENT_H_GUARD

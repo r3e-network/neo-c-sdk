@@ -236,6 +236,7 @@ void test_nep2_encryption_workflow(void) {
     neoc_free(encrypted_key);
     neoc_account_free(account);
     neoc_account_free(restored_account);
+    neoc_ec_key_pair_free(original_key_pair);
     neoc_ec_key_pair_free(decrypted_key_pair);
 }
 
@@ -568,7 +569,7 @@ void test_bulk_account_operations_workflow(void) {
     size_t account_count;
     err = neoc_wallet_get_account_count(wallet, &account_count);
     TEST_ASSERT_EQUAL_INT(NEOC_SUCCESS, err);
-    TEST_ASSERT_EQUAL_INT(NUM_ACCOUNTS, account_count);
+    TEST_ASSERT_EQUAL_UINT64((uint64_t)NUM_ACCOUNTS, (uint64_t)account_count);
     
     // 4. Test batch address generation
     char* addresses[NUM_ACCOUNTS];
@@ -596,6 +597,7 @@ void test_bulk_account_operations_workflow(void) {
                     neoc_free(wif);
                     wif_count++;
                 }
+                neoc_ec_key_pair_free(key_pair);
             }
         }
     }
@@ -651,7 +653,7 @@ void test_error_recovery_workflow(void) {
     TEST_ASSERT_EQUAL_INT(NEOC_SUCCESS, err);
     
     // Try to decrypt with wrong password
-    neoc_ec_key_pair_t* decrypted_key_pair;
+    neoc_ec_key_pair_t* decrypted_key_pair = NULL;
     err = neoc_nep2_decrypt_key_pair(encrypted_key, "wrong_password", NULL, &decrypted_key_pair);
     TEST_ASSERT_TRUE(err != NEOC_SUCCESS);
     printf("  Correctly handled wrong NEP-2 password\n");
@@ -663,6 +665,7 @@ void test_error_recovery_workflow(void) {
     
     neoc_free(encrypted_key);
     neoc_account_free(account);
+    neoc_ec_key_pair_free(key_pair);
     neoc_ec_key_pair_free(decrypted_key_pair);
 }
 

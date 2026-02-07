@@ -9,38 +9,50 @@
 #include <openssl/ripemd.h>
 #include <openssl/hmac.h>
 #include <openssl/err.h>
+#include <openssl/crypto.h>
 #include <string.h>
+#include <stdatomic.h>
 
-/* Track initialization state */
-static int crypto_initialized = 0;
+/* Thread-safe one-time OpenSSL initialization. */
+static atomic_int crypto_init_state = ATOMIC_VAR_INIT(0); /* 0=uninit, 1=initializing, 2=initialized */
 
 neoc_error_t neoc_crypto_init(void) {
-    if (crypto_initialized) {
+    int state = atomic_load(&crypto_init_state);
+    if (state == 2) {
         return NEOC_SUCCESS;
     }
-    
-    /* Initialize OpenSSL */
-    ERR_load_crypto_strings();
-    OpenSSL_add_all_algorithms();
-    
-    crypto_initialized = 1;
+
+    int expected = 0;
+    if (atomic_compare_exchange_strong(&crypto_init_state, &expected, 1)) {
+        /* Initialize OpenSSL (safe no-op on OpenSSL >= 1.1). */
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+        ERR_load_crypto_strings();
+        OpenSSL_add_all_algorithms();
+#else
+        OPENSSL_init_crypto(0, NULL);
+#endif
+        atomic_store(&crypto_init_state, 2);
+        return NEOC_SUCCESS;
+    }
+
+    /* Another thread is initializing; wait until complete. */
+    while (atomic_load(&crypto_init_state) == 1) {
+        /* spin */
+    }
+
     return NEOC_SUCCESS;
 }
 
 void neoc_crypto_cleanup(void) {
-    if (!crypto_initialized) {
-        return;
-    }
-    
-    /* Cleanup OpenSSL */
-    EVP_cleanup();
-    ERR_free_strings();
-    
-    crypto_initialized = 0;
+    /*
+     * OpenSSL 1.1+ manages global cleanup automatically at process exit and
+     * repeated init/cleanup cycles can cause subtle issues and leaks.
+     * Keep this as a no-op to make neoc_cleanup() safe and idempotent.
+     */
 }
 
 bool neoc_crypto_is_initialized(void) {
-    return crypto_initialized != 0;
+    return atomic_load(&crypto_init_state) == 2;
 }
 
 neoc_error_t neoc_sha256(const uint8_t* data, size_t data_length, uint8_t digest[NEOC_SHA256_DIGEST_LENGTH]) {
@@ -48,7 +60,7 @@ neoc_error_t neoc_sha256(const uint8_t* data, size_t data_length, uint8_t digest
         return NEOC_ERROR_NULL_POINTER;
     }
     
-    if (!crypto_initialized) {
+    if (!neoc_crypto_is_initialized()) {
         return NEOC_ERROR_CRYPTO_INIT;
     }
     
@@ -95,7 +107,7 @@ neoc_error_t neoc_ripemd160(const uint8_t* data, size_t data_length, uint8_t dig
         return NEOC_ERROR_NULL_POINTER;
     }
     
-    if (!crypto_initialized) {
+    if (!neoc_crypto_is_initialized()) {
         return NEOC_ERROR_CRYPTO_INIT;
     }
     
@@ -138,8 +150,8 @@ neoc_error_t neoc_hash160(const uint8_t* data, size_t data_length, uint8_t diges
 }
 
 neoc_error_t neoc_hash256(const uint8_t* data, size_t data_length, uint8_t digest[NEOC_SHA256_DIGEST_LENGTH]) {
-    /* Hash256 is just SHA-256 for Neo */
-    return neoc_sha256(data, data_length, digest);
+    /* Neo N3 Hash256 is double SHA-256: SHA256(SHA256(data)) */
+    return neoc_sha256_double(data, data_length, digest);
 }
 
 neoc_error_t neoc_hmac_sha256(const uint8_t* key, size_t key_length,
@@ -149,7 +161,7 @@ neoc_error_t neoc_hmac_sha256(const uint8_t* key, size_t key_length,
         return NEOC_ERROR_NULL_POINTER;
     }
     
-    if (!crypto_initialized) {
+    if (!neoc_crypto_is_initialized()) {
         return NEOC_ERROR_CRYPTO_INIT;
     }
     

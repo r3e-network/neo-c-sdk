@@ -6,43 +6,38 @@
 #include "neoc/neoc.h"
 #include "neoc/crypto/neoc_hash.h"
 #include <string.h>
+#include <stdatomic.h>
 
 /* Version information */
 #define NEOC_VERSION_MAJOR 1
-#define NEOC_VERSION_MINOR 1
+#define NEOC_VERSION_MINOR 2
 #define NEOC_VERSION_PATCH 0
 
 /* Build information */
-static const char* version_string = "1.1.0";
-static const char* build_info = "NeoC SDK v1.1.0 - Built with OpenSSL";
+static const char* version_string = "1.2.0";
+static const char* build_info = "NeoC SDK v1.2.0 - Neo N3 v3.9.1 compatible";
 
 /* Global state tracking */
-static int neoc_is_initialized = 0;
+static atomic_bool neoc_is_initialized = ATOMIC_VAR_INIT(false);
 
 neoc_error_t neoc_init(void) {
-    if (neoc_is_initialized) {
-        return NEOC_SUCCESS;
-    }
-    
     /* Initialize crypto subsystem */
     neoc_error_t result = neoc_crypto_init();
     if (result != NEOC_SUCCESS) {
         return result;
     }
     
-    neoc_is_initialized = 1;
+    atomic_store(&neoc_is_initialized, true);
     return NEOC_SUCCESS;
 }
 
 void neoc_cleanup(void) {
-    if (!neoc_is_initialized) {
+    if (!atomic_exchange(&neoc_is_initialized, false)) {
         return;
     }
     
     /* Cleanup crypto subsystem */
     neoc_crypto_cleanup();
-    
-    neoc_is_initialized = 0;
 }
 
 const char* neoc_get_version(void) {

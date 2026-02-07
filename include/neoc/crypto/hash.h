@@ -3,8 +3,8 @@
  * @brief Cryptographic hash functions
  */
 
-#ifndef NEOC_HASH_H
-#define NEOC_HASH_H
+#ifndef NEOC_CRYPTO_HASH_H
+#define NEOC_CRYPTO_HASH_H
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -67,4 +67,4 @@ bool neoc_hash_verify(const uint8_t *data, size_t data_len,
 }
 #endif
 
-#endif // NEOC_HASH_H
+#endif // NEOC_CRYPTO_HASH_H

@@ -1,3 +1,9 @@
+/**
+ * @file test_nns_name.c
+ * @brief Unit tests for NNS name helpers
+ */
+
+#include <stddef.h>
 #include "unity.h"
 #include <string.h>
 #include <time.h>

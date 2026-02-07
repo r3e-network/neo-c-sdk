@@ -1,5 +1,5 @@
 /**
- * @file neo_u_r_i.h
+ * @file neoc_uri.h
  * @brief NEO URI scheme interface
  */
 

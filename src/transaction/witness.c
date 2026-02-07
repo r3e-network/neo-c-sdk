@@ -3,6 +3,7 @@
 #include "neoc/neoc_memory.h"
 #include "neoc/serialization/binary_writer.h"
 #include "neoc/serialization/binary_reader.h"
+#include "neoc/script/script_helper.h"
 #include <string.h>
 
 static size_t neoc_var_int_size(uint64_t value) {
@@ -68,39 +69,34 @@ neoc_error_t neoc_witness_create_from_signature(const uint8_t *signature,
     if (!signature || !public_key || !witness) {
         return neoc_error_set(NEOC_ERROR_INVALID_ARGUMENT, "Invalid arguments");
     }
-    
-    // Create invocation script (push signature)
-    size_t invocation_len = 1 + signature_len;  // OpCode + signature
-    uint8_t *invocation_script = neoc_malloc(invocation_len);
-    if (!invocation_script) {
-        return neoc_error_set(NEOC_ERROR_MEMORY, "Failed to allocate invocation script");
+
+    // Create Neo N3 invocation script using helper (syscall-based format)
+    uint8_t *invocation_script = NULL;
+    size_t invocation_len = 0;
+    neoc_error_t err = neoc_script_create_single_sig_invocation(signature, signature_len,
+                                                                 &invocation_script, &invocation_len);
+    if (err != NEOC_SUCCESS) {
+        return err;
     }
-    
-    // Push signature opcode (0x40 + length for 64 bytes)
-    invocation_script[0] = 0x40;
-    memcpy(invocation_script + 1, signature, signature_len);
-    
-    // Create verification script (push public key + CHECKSIG)
-    size_t verification_len = 1 + public_key_len + 1;  // OpCode + pubkey + CHECKSIG
-    uint8_t *verification_script = neoc_malloc(verification_len);
-    if (!verification_script) {
+
+    // Create Neo N3 verification script using helper (syscall-based format)
+    uint8_t *verification_script = NULL;
+    size_t verification_len = 0;
+    err = neoc_script_create_single_sig_verification(public_key, public_key_len,
+                                                      &verification_script, &verification_len);
+    if (err != NEOC_SUCCESS) {
         neoc_free(invocation_script);
-        return neoc_error_set(NEOC_ERROR_MEMORY, "Failed to allocate verification script");
+        return err;
     }
-    
-    // Push public key opcode (0x21 for 33 bytes compressed key)
-    verification_script[0] = 0x21;
-    memcpy(verification_script + 1, public_key, public_key_len);
-    verification_script[1 + public_key_len] = 0xAC;  // CHECKSIG opcode
-    
+
     // Create witness
-    neoc_error_t err = neoc_witness_create(invocation_script, invocation_len,
-                                            verification_script, verification_len,
-                                            witness);
-    
+    err = neoc_witness_create(invocation_script, invocation_len,
+                               verification_script, verification_len,
+                               witness);
+
     neoc_free(invocation_script);
     neoc_free(verification_script);
-    
+
     return err;
 }
 

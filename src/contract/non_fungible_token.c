@@ -49,7 +49,10 @@ neoc_error_t neoc_nft_symbol(neoc_non_fungible_token_t *nft, char **symbol) {
     
     // Get symbol from base token if available
     if (nft->base.symbol) {
-        *symbol = strdup(nft->base.symbol);
+        *symbol = neoc_strdup(nft->base.symbol);
+        if (!*symbol) {
+            return neoc_error_set(NEOC_ERROR_MEMORY, "Failed to duplicate symbol");
+        }
         return NEOC_SUCCESS;
     }
     
@@ -89,15 +92,51 @@ neoc_error_t neoc_nft_symbol(neoc_non_fungible_token_t *nft, char **symbol) {
     if (rpc && rpc->invoke_script) {
         err = rpc->invoke_script(rpc, script, script_len, &result);
         if (err == NEOC_SUCCESS && result.type == RESULT_STRING) {
-            *symbol = strdup(result.string_value);
-            nft->base.symbol = strdup(result.string_value);
+            *symbol = neoc_strdup(result.string_value);
+            if (!*symbol) {
+                neoc_free(script);
+                neoc_script_builder_free(builder);
+                return neoc_error_set(NEOC_ERROR_MEMORY, "Failed to allocate symbol");
+            }
+            nft->base.symbol = neoc_strdup(result.string_value);
+            if (!nft->base.symbol) {
+                neoc_free(*symbol);
+                *symbol = NULL;
+                neoc_free(script);
+                neoc_script_builder_free(builder);
+                return neoc_error_set(NEOC_ERROR_MEMORY, "Failed to allocate symbol");
+            }
         } else {
-            *symbol = strdup("NFT");  // Default fallback
-            nft->base.symbol = strdup("NFT");
+            *symbol = neoc_strdup("NFT");  // Default fallback
+            if (!*symbol) {
+                neoc_free(script);
+                neoc_script_builder_free(builder);
+                return neoc_error_set(NEOC_ERROR_MEMORY, "Failed to allocate symbol");
+            }
+            nft->base.symbol = neoc_strdup("NFT");
+            if (!nft->base.symbol) {
+                neoc_free(*symbol);
+                *symbol = NULL;
+                neoc_free(script);
+                neoc_script_builder_free(builder);
+                return neoc_error_set(NEOC_ERROR_MEMORY, "Failed to allocate symbol");
+            }
         }
     } else {
-        *symbol = strdup("NFT");  // Default when no RPC
-        nft->base.symbol = strdup("NFT");
+        *symbol = neoc_strdup("NFT");  // Default when no RPC
+        if (!*symbol) {
+            neoc_free(script);
+            neoc_script_builder_free(builder);
+            return neoc_error_set(NEOC_ERROR_MEMORY, "Failed to allocate symbol");
+        }
+        nft->base.symbol = neoc_strdup("NFT");
+        if (!nft->base.symbol) {
+            neoc_free(*symbol);
+            *symbol = NULL;
+            neoc_free(script);
+            neoc_script_builder_free(builder);
+            return neoc_error_set(NEOC_ERROR_MEMORY, "Failed to allocate symbol");
+        }
         err = NEOC_ERROR_NETWORK;
     }
     

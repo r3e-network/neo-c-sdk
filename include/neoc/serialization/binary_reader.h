@@ -145,8 +145,9 @@ neoc_error_t neoc_binary_reader_read_var_int(neoc_binary_reader_t *reader,
  * @brief Read variable-length bytes
  * 
  * @param reader The reader
- * @param data Output data (caller must free)
+ * @param data Output data (caller must free when non-NULL)
  * @param len Output length
+ * @note Returns `NEOC_SUCCESS` with `*len == 0` and `*data == NULL` for empty payloads.
  * @return NEOC_SUCCESS on success, error code otherwise
  */
 neoc_error_t neoc_binary_reader_read_var_bytes(neoc_binary_reader_t *reader,
@@ -229,6 +230,7 @@ neoc_error_t neoc_binary_reader_reset(neoc_binary_reader_t *reader);
  * @param reader The reader
  * @param data Output EC point data (caller must free)
  * @param len Output length
+ * @note Returns `NEOC_SUCCESS` with `*len == 0` and `*data == NULL` for empty payloads.
  * @return NEOC_SUCCESS on success, error code otherwise
  */
 neoc_error_t neoc_binary_reader_read_encoded_ec_point(neoc_binary_reader_t *reader,
@@ -239,8 +241,9 @@ neoc_error_t neoc_binary_reader_read_encoded_ec_point(neoc_binary_reader_t *read
  * @brief Read PUSH data
  * 
  * @param reader The reader
- * @param data Output data (caller must free)
+ * @param data Output data (caller must free when non-NULL)
  * @param len Output length
+ * @note Returns `NEOC_SUCCESS` with `*len == 0` and `*data == NULL` for empty payloads.
  * @return NEOC_SUCCESS on success, error code otherwise
  */
 neoc_error_t neoc_binary_reader_read_push_data(neoc_binary_reader_t *reader,
@@ -252,8 +255,9 @@ neoc_error_t neoc_binary_reader_read_push_data(neoc_binary_reader_t *reader,
  * 
  * @param reader The reader
  * @param max_length Maximum length to read
- * @param data Output data (caller must free)
+ * @param data Output data (caller must free when non-NULL)
  * @param len Output length
+ * @note Returns `NEOC_SUCCESS` with `*len == 0` and `*data == NULL` for empty payloads.
  * @return NEOC_SUCCESS on success, error code otherwise
  */
 neoc_error_t neoc_binary_reader_read_var_bytes_max(neoc_binary_reader_t *reader,
@@ -299,6 +303,7 @@ neoc_error_t neoc_binary_reader_read_push_int(neoc_binary_reader_t *reader,
  * @param reader The reader
  * @param data Output big integer data (caller must free)
  * @param len Output length
+ * @note Returns `NEOC_SUCCESS` with `*len == 0` and `*data == NULL` for empty payloads.
  * @param is_negative Output sign flag
  * @return NEOC_SUCCESS on success, error code otherwise
  */

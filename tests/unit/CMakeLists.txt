@@ -7,7 +7,10 @@ set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
 find_package(OpenSSL REQUIRED)
-find_package(CURL REQUIRED)
+find_package(CURL QUIET)
+if(NOT CURL_FOUND)
+    message(STATUS "libcurl not found - building unit tests without CURL")
+endif()
 
 # When building this test suite standalone, import the root NeoC static library.
 if(NOT TARGET neoc)
@@ -43,7 +46,7 @@ foreach(TEST_SOURCE ${TEST_SOURCES})
         endif()
     endif()
     if(TEST_SOURCE MATCHES "/wallet/")
-        if(NOT (TEST_SOURCE MATCHES "test_n_e_p6_wallet.c$" OR
+        if(NOT (TEST_SOURCE MATCHES "test_nep6_wallet_struct.c$" OR
                 TEST_SOURCE MATCHES "test_account.c$"))
             message(STATUS "Skipping unit test ${TEST_SOURCE} (wallet unit tests require legacy API)")
             continue()
@@ -62,8 +65,13 @@ foreach(TEST_SOURCE ${TEST_SOURCES})
         unit_unity
         neoc
         OpenSSL::SSL
-        OpenSSL::Crypto
-        CURL::libcurl)
+        OpenSSL::Crypto)
+    if(CURL_FOUND)
+        target_link_libraries(${TARGET_NAME} CURL::libcurl)
+    endif()
+    if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+        target_link_options(${TARGET_NAME} PRIVATE -fsanitize=address)
+    endif()
     if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
         target_compile_options(${TARGET_NAME} PRIVATE -UNDEBUG)
     elseif(MSVC)

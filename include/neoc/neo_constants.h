@@ -14,8 +14,8 @@ extern "C" {
 #endif
 
 // Network magic numbers
-#define NEOC_MAINNET_MAGIC 0x4F454E
-#define NEOC_TESTNET_MAGIC 0x4F454E54
+#define NEOC_MAINNET_MAGIC 0x334F454E
+#define NEOC_TESTNET_MAGIC 0x334F4554
 
 // Sizes and limits from Swift NeoConstants
 #define NEOC_PRIVATE_KEY_SIZE 32
@@ -96,6 +96,12 @@ extern size_t neoc_get_secp256r1_half_curve_order_size(void);
 
 // Version
 #define NEOC_PROTOCOL_VERSION 0
+
+// Neo N3 protocol version compatibility markers
+#define NEOC_PROTOCOL_VERSION_391 0x00030901  /* Neo N3 v3.9.1 */
+#define NEOC_SDK_VERSION_MAJOR 1
+#define NEOC_SDK_VERSION_MINOR 2
+#define NEOC_SDK_VERSION_PATCH 0
 
 #ifdef __cplusplus
 }

@@ -31,7 +31,7 @@ neoc_error_t neoc_nep6_wallet_struct_create(const char *name,
     
     // Set name and version
     if (name) {
-        (*wallet)->name = strdup(name);
+        (*wallet)->name = neoc_strdup(name);
         if (!(*wallet)->name) {
             neoc_free(*wallet);
             *wallet = NULL;
@@ -39,7 +39,7 @@ neoc_error_t neoc_nep6_wallet_struct_create(const char *name,
         }
     }
     
-    (*wallet)->version = strdup(version ? version : "3.0");
+    (*wallet)->version = neoc_strdup(version ? version : "3.0");
     if (!(*wallet)->version) {
         if ((*wallet)->name) neoc_free((*wallet)->name);
         neoc_free(*wallet);
@@ -308,8 +308,8 @@ neoc_error_t neoc_nep6_wallet_struct_add_extra(neoc_nep6_wallet_struct_t *wallet
     }
     
     wallet->extra = new_extra;
-    wallet->extra[wallet->extra_count].key = strdup(key);
-    wallet->extra[wallet->extra_count].value = strdup(value);
+    wallet->extra[wallet->extra_count].key = neoc_strdup(key);
+    wallet->extra[wallet->extra_count].value = neoc_strdup(value);
     
     if (!wallet->extra[wallet->extra_count].key || !wallet->extra[wallet->extra_count].value) {
         if (wallet->extra[wallet->extra_count].key) neoc_free(wallet->extra[wallet->extra_count].key);

@@ -4,7 +4,7 @@
 #include <stdbool.h>
 #include "express_contract_state.h"
 #include "contract_nef.h"
-#include "../stack_item.h"
+#include "neoc/protocol/stack_item.h"
 
 #ifdef __cplusplus
 extern "C" {

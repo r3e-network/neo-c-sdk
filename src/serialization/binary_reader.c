@@ -1,5 +1,6 @@
 #include "neoc/serialization/binary_reader.h"
 #include "neoc/script/opcode.h"
+#include "neoc/neoc_memory.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -10,14 +11,14 @@ neoc_error_t neoc_binary_reader_create(const uint8_t *data,
         return neoc_error_set(NEOC_ERROR_INVALID_ARGUMENT, "Invalid arguments");
     }
     
-    *reader = calloc(1, sizeof(neoc_binary_reader_t));
+    *reader = neoc_calloc(1, sizeof(neoc_binary_reader_t));
     if (!*reader) {
         return neoc_error_set(NEOC_ERROR_MEMORY, "Failed to allocate binary reader");
     }
     
-    uint8_t *copy = malloc(size);
+    uint8_t *copy = neoc_malloc(size);
     if (!copy) {
-        free(*reader);
+        neoc_free(*reader);
         return neoc_error_set(NEOC_ERROR_MEMORY, "Failed to allocate reader buffer");
     }
     memcpy(copy, data, size);
@@ -203,14 +204,14 @@ neoc_error_t neoc_binary_reader_read_var_bytes(neoc_binary_reader_t *reader,
         return NEOC_SUCCESS;
     }
     
-    *data = malloc(*len);
+    *data = neoc_malloc(*len);
     if (!*data) {
         return neoc_error_set(NEOC_ERROR_MEMORY, "Failed to allocate data buffer");
     }
     
     err = neoc_binary_reader_read_bytes(reader, *data, *len);
     if (err != NEOC_SUCCESS) {
-        free(*data);
+        neoc_free(*data);
         *data = NULL;
         *len = 0;
         return err;
@@ -231,23 +232,23 @@ neoc_error_t neoc_binary_reader_read_var_string(neoc_binary_reader_t *reader,
     if (err != NEOC_SUCCESS) return err;
     
     if (len == 0) {
-        *str = calloc(1, 1);  // Empty string
+        *str = neoc_calloc(1, 1);  // Empty string
         if (!*str) {
             return neoc_error_set(NEOC_ERROR_MEMORY, "Failed to allocate empty string");
         }
         return NEOC_SUCCESS;
     }
     
-    *str = malloc(len + 1);
+    *str = neoc_malloc(len + 1);
     if (!*str) {
-        free(data);
+        neoc_free(data);
         return neoc_error_set(NEOC_ERROR_MEMORY, "Failed to allocate string");
     }
     
     memcpy(*str, data, len);
     (*str)[len] = '\0';
     
-    free(data);
+    neoc_free(data);
     return NEOC_SUCCESS;
 }
 
@@ -333,7 +334,7 @@ neoc_error_t neoc_binary_reader_read_encoded_ec_point(neoc_binary_reader_t *read
     if (byte == 0x02 || byte == 0x03) {
         // Compressed point: 1 byte prefix + 32 bytes
         *len = 33;
-        *data = malloc(*len);
+        *data = neoc_malloc(*len);
         if (!*data) {
             return neoc_error_set(NEOC_ERROR_MEMORY, "Failed to allocate EC point data");
         }
@@ -341,7 +342,7 @@ neoc_error_t neoc_binary_reader_read_encoded_ec_point(neoc_binary_reader_t *read
         (*data)[0] = byte;
         err = neoc_binary_reader_read_bytes(reader, *data + 1, 32);
         if (err != NEOC_SUCCESS) {
-            free(*data);
+            neoc_free(*data);
             *data = NULL;
             *len = 0;
         }
@@ -396,7 +397,7 @@ neoc_error_t neoc_binary_reader_read_push_data(neoc_binary_reader_t *reader,
     }
     
     if (size == 0) {
-        *data = malloc(1); // Empty but valid pointer
+        *data = neoc_malloc(1); // Empty but valid pointer
         if (!*data) {
             return neoc_error_set(NEOC_ERROR_MEMORY, "Failed to allocate empty buffer");
         }
@@ -404,14 +405,14 @@ neoc_error_t neoc_binary_reader_read_push_data(neoc_binary_reader_t *reader,
         return NEOC_SUCCESS;
     }
     
-    *data = malloc(size);
+    *data = neoc_malloc(size);
     if (!*data) {
         return neoc_error_set(NEOC_ERROR_MEMORY, "Failed to allocate buffer");
     }
     
     err = neoc_binary_reader_read_bytes(reader, *data, size);
     if (err != NEOC_SUCCESS) {
-        free(*data);
+        neoc_free(*data);
         *data = NULL;
         return err;
     }
@@ -438,21 +439,21 @@ neoc_error_t neoc_binary_reader_read_var_bytes_max(neoc_binary_reader_t *reader,
     
     *len = (size_t)length;
     if (*len == 0) {
-        *data = malloc(1); // Empty but valid pointer
+        *data = neoc_malloc(1); // Empty but valid pointer
         if (!*data) {
             return neoc_error_set(NEOC_ERROR_MEMORY, "Failed to allocate empty buffer");
         }
         return NEOC_SUCCESS;
     }
     
-    *data = malloc(*len);
+    *data = neoc_malloc(*len);
     if (!*data) {
         return neoc_error_set(NEOC_ERROR_MEMORY, "Failed to allocate buffer");
     }
     
     err = neoc_binary_reader_read_bytes(reader, *data, *len);
     if (err != NEOC_SUCCESS) {
-        free(*data);
+        neoc_free(*data);
         *data = NULL;
         *len = 0;
     }
@@ -488,9 +489,9 @@ neoc_error_t neoc_binary_reader_read_push_string(neoc_binary_reader_t *reader,
     neoc_error_t err = neoc_binary_reader_read_push_data(reader, &data, &len);
     if (err != NEOC_SUCCESS) return err;
     
-    *str = malloc(len + 1);
+    *str = neoc_malloc(len + 1);
     if (!*str) {
-        free(data);
+        neoc_free(data);
         return neoc_error_set(NEOC_ERROR_MEMORY, "Failed to allocate string");
     }
     
@@ -499,7 +500,7 @@ neoc_error_t neoc_binary_reader_read_push_string(neoc_binary_reader_t *reader,
     }
     (*str)[len] = '\0';
     
-    free(data);
+    neoc_free(data);
     return NEOC_SUCCESS;
 }
 
@@ -517,7 +518,7 @@ neoc_error_t neoc_binary_reader_read_push_int(neoc_binary_reader_t *reader,
     if (err != NEOC_SUCCESS) return err;
     
     if (len > 4) {
-        free(data);
+        neoc_free(data);
         return neoc_error_set(NEOC_ERROR_INVALID_DATA, "Integer too large for 32-bit");
     }
     
@@ -527,7 +528,7 @@ neoc_error_t neoc_binary_reader_read_push_int(neoc_binary_reader_t *reader,
     }
     
     *value = is_negative ? -(int32_t)result : (int32_t)result;
-    free(data);
+    neoc_free(data);
     return NEOC_SUCCESS;
 }
 
@@ -557,7 +558,7 @@ neoc_error_t neoc_binary_reader_read_push_big_int(neoc_binary_reader_t *reader,
     if (byte >= NEOC_OP_PUSH1 && byte <= NEOC_OP_PUSH16) { // 0x11 - 0x20
         int32_t val = (int32_t)(byte - NEOC_OP_PUSH1 + 1);
         *len = sizeof(int32_t);
-        *data = malloc(*len);
+        *data = neoc_malloc(*len);
         if (!*data) {
             return neoc_error_set(NEOC_ERROR_MEMORY, "Failed to allocate integer data");
         }
@@ -568,7 +569,7 @@ neoc_error_t neoc_binary_reader_read_push_big_int(neoc_binary_reader_t *reader,
     if (byte == NEOC_OP_PUSHM1) { // 0x0F
         *is_negative = true;
         *len = sizeof(int32_t);
-        *data = malloc(*len);
+        *data = neoc_malloc(*len);
         if (!*data) {
             return neoc_error_set(NEOC_ERROR_MEMORY, "Failed to allocate integer data");
         }
@@ -601,14 +602,14 @@ neoc_error_t neoc_binary_reader_read_push_big_int(neoc_binary_reader_t *reader,
             return neoc_error_set(NEOC_ERROR_INVALID_DATA, "Not a PUSHINT opcode");
     }
     
-    *data = malloc(count);
+    *data = neoc_malloc((size_t)count);
     if (!*data) {
         return neoc_error_set(NEOC_ERROR_MEMORY, "Failed to allocate integer data");
     }
     
     err = neoc_binary_reader_read_bytes(reader, *data, count);
     if (err != NEOC_SUCCESS) {
-        free(*data);
+        neoc_free(*data);
         *data = NULL;
         return err;
     }
@@ -626,9 +627,9 @@ neoc_error_t neoc_binary_reader_read_push_big_int(neoc_binary_reader_t *reader,
 void neoc_binary_reader_free(neoc_binary_reader_t *reader) {
     if (reader) {
         if (reader->owned_data) {
-            free(reader->owned_data);
+            neoc_free(reader->owned_data);
             reader->owned_data = NULL;
         }
-        free(reader);
+        neoc_free(reader);
     }
 }

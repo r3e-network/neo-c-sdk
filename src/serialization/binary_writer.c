@@ -1,4 +1,5 @@
 #include "neoc/serialization/binary_writer.h"
+#include "neoc/neoc_memory.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -19,7 +20,7 @@ static neoc_error_t ensure_capacity(neoc_binary_writer_t *writer, size_t require
         new_capacity *= GROWTH_FACTOR;
     }
     
-    uint8_t *new_data = realloc(writer->data, new_capacity);
+    uint8_t *new_data = neoc_realloc(writer->data, new_capacity);
     if (!new_data) {
         return neoc_error_set(NEOC_ERROR_MEMORY, "Failed to grow binary writer buffer");
     }
@@ -37,15 +38,15 @@ neoc_error_t neoc_binary_writer_create(size_t initial_capacity,
         return neoc_error_set(NEOC_ERROR_INVALID_ARGUMENT, "Invalid writer pointer");
     }
     
-    *writer = calloc(1, sizeof(neoc_binary_writer_t));
+    *writer = neoc_calloc(1, sizeof(neoc_binary_writer_t));
     if (!*writer) {
         return neoc_error_set(NEOC_ERROR_MEMORY, "Failed to allocate binary writer");
     }
     
     size_t capacity = initial_capacity > MIN_CAPACITY ? initial_capacity : MIN_CAPACITY;
-    (*writer)->data = calloc(capacity, 1);
+    (*writer)->data = neoc_calloc(capacity, 1);
     if (!(*writer)->data) {
-        free(*writer);
+        neoc_free(*writer);
         *writer = NULL;
         return neoc_error_set(NEOC_ERROR_MEMORY, "Failed to allocate writer buffer");
     }
@@ -237,12 +238,17 @@ neoc_error_t neoc_binary_writer_to_array(const neoc_binary_writer_t *writer,
         return neoc_error_set(NEOC_ERROR_INVALID_ARGUMENT, "Invalid arguments");
     }
     
-    *len = writer->position;
-    *data = malloc(*len);
+        *len = writer->position;
+    if (*len == 0) {
+        *data = NULL;
+        return NEOC_SUCCESS;
+    }
+
+    *data = neoc_malloc(*len);
     if (!*data) {
         return neoc_error_set(NEOC_ERROR_MEMORY, "Failed to allocate output array");
     }
-    
+
     memcpy(*data, writer->data, *len);
     
     return NEOC_SUCCESS;
@@ -258,8 +264,8 @@ void neoc_binary_writer_free(neoc_binary_writer_t *writer) {
     if (!writer) return;
     
     if (writer->data) {
-        free(writer->data);
+        neoc_free(writer->data);
     }
     
-    free(writer);
+    neoc_free(writer);
 }

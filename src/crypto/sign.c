@@ -91,23 +91,24 @@ static EC_KEY *neoc_ec_key_from_public(const neoc_ec_public_key_t *public_key) {
         EC_KEY_free(ec_key);
         return NULL;
     }
+    /* EC_KEY_set_group duplicates the group; caller retains ownership. */
+    EC_GROUP_free(group);
+    group = NULL;
 
-    EC_POINT *point = EC_POINT_dup(public_key->point, group);
+    const EC_GROUP *key_group = EC_KEY_get0_group(ec_key);
+    EC_POINT *point = EC_POINT_dup(public_key->point, key_group);
     if (!point) {
-        EC_GROUP_free(group);
         EC_KEY_free(ec_key);
         return NULL;
     }
 
     if (EC_KEY_set_public_key(ec_key, point) != 1) {
         EC_POINT_free(point);
-        EC_GROUP_free(group);
         EC_KEY_free(ec_key);
         return NULL;
     }
 
     EC_POINT_free(point);
-    /* EC_KEY takes ownership/reference of group */
     return ec_key;
 }
 

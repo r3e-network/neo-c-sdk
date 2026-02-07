@@ -1,5 +1,5 @@
 /**
- * @file neo_name_service.c  
+ * @file neoc_name_service.c
  * @brief NEO Name Service (NNS) implementation
  */
 
@@ -111,7 +111,12 @@ neoc_error_t neoc_nns_resolve(neoc_neo_name_service_t *nns,
     if (rpc && rpc->invoke_script) {
         err = rpc->invoke_script(rpc, script, script_len, &rpc_result);
         if (err == NEOC_SUCCESS && rpc_result.type == RESULT_STRING) {
-            *result = strdup(rpc_result.string_value);
+            *result = neoc_strdup(rpc_result.string_value);
+            if (!*result) {
+                neoc_free(script);
+                neoc_script_builder_free(builder);
+                return neoc_error_set(NEOC_ERROR_MEMORY, "Failed to allocate result");
+            }
         } else {
             *result = NULL;
         }

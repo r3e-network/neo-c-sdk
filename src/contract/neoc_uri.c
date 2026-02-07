@@ -1,5 +1,5 @@
 /**
- * @file neo_u_r_i.c
+ * @file neoc_uri.c
  * @brief NEO URI scheme implementation
  */
 
@@ -158,7 +158,7 @@ neoc_error_t neoc_neo_uri_get_address(const neoc_neo_uri_t *uri, char **address)
     }
     
     if (uri->address) {
-        *address = strdup(uri->address);
+        *address = neoc_strdup(uri->address);
         if (!*address) {
             return neoc_error_set(NEOC_ERROR_MEMORY, "Failed to duplicate address");
         }
@@ -175,7 +175,7 @@ neoc_error_t neoc_neo_uri_get_asset(const neoc_neo_uri_t *uri, char **asset) {
     }
     
     if (uri->asset) {
-        *asset = strdup(uri->asset);
+        *asset = neoc_strdup(uri->asset);
         if (!*asset) {
             return neoc_error_set(NEOC_ERROR_MEMORY, "Failed to duplicate asset");
         }
@@ -201,7 +201,7 @@ neoc_error_t neoc_neo_uri_get_description(const neoc_neo_uri_t *uri, char **desc
     }
     
     if (uri->description) {
-        *description = strdup(uri->description);
+        *description = neoc_strdup(uri->description);
         if (!*description) {
             return neoc_error_set(NEOC_ERROR_MEMORY, "Failed to duplicate description");
         }

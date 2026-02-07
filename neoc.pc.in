@@ -8,4 +8,6 @@ Description: C SDK for Neo blockchain development
 Version: @PROJECT_VERSION@
 Libs: -L${libdir} -lneoc
 Cflags: -I${includedir}
-Requires: openssl libcjson libcurl
+Requires: @NEOC_PKG_REQUIRES@
+Requires.private: @NEOC_PKG_REQUIRES_PRIVATE@
+Libs.private: -lm

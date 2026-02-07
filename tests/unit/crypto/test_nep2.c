@@ -1,5 +1,5 @@
 /**
- * @file test_n_e_p2.c
+ * @file test_nep2.c
  * @brief Unit tests converted from NEP2Tests.swift
  */
 

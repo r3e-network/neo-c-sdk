@@ -122,6 +122,7 @@ static neoc_error_t make_rpc_call(neoc_rpc_client_t *client,
     }
     
 #ifndef HAVE_CURL
+    (void)params;
     return neoc_error_set(NEOC_ERROR_NOT_IMPLEMENTED, "CURL support not compiled in");
 #else
 #ifndef HAVE_CJSON
@@ -668,6 +669,7 @@ neoc_error_t neoc_rpc_get_block(neoc_rpc_client_t *client,
     }
     
 #ifndef HAVE_CURL
+    (void)verbose;
     return neoc_error_set(NEOC_ERROR_NOT_IMPLEMENTED, "libcurl support not compiled in");
 #else
 #ifndef HAVE_CJSON
@@ -828,6 +830,7 @@ neoc_error_t neoc_rpc_get_transaction(neoc_rpc_client_t *client,
     }
     
 #ifndef HAVE_CURL
+    (void)verbose;
     return neoc_error_set(NEOC_ERROR_NOT_IMPLEMENTED, "libcurl support not compiled in");
 #else
 #ifndef HAVE_CJSON
@@ -1036,12 +1039,12 @@ neoc_error_t neoc_rpc_get_contract_state(neoc_rpc_client_t *client,
         
         cJSON *compiler_item = cJSON_GetObjectItem(item, "compiler");
         if (compiler_item && cJSON_IsString(compiler_item)) {
-            (*state)->nef.compiler = strdup(compiler_item->valuestring);
+            (*state)->nef.compiler = neoc_strdup(compiler_item->valuestring);
         }
         
         cJSON *source_item = cJSON_GetObjectItem(item, "source");
         if (source_item && cJSON_IsString(source_item)) {
-            (*state)->nef.source = strdup(source_item->valuestring);
+            (*state)->nef.source = neoc_strdup(source_item->valuestring);
         }
         
         cJSON *script_item = cJSON_GetObjectItem(item, "script");
@@ -1069,9 +1072,9 @@ neoc_error_t neoc_rpc_get_contract_state(neoc_rpc_client_t *client,
         // Parse manifest structure from JSON
         cJSON *name_item = cJSON_GetObjectItem(item, "name");
         if (name_item && cJSON_IsString(name_item)) {
-            (*state)->manifest.name = strdup(name_item->valuestring);
+            (*state)->manifest.name = neoc_strdup(name_item->valuestring);
         } else {
-            (*state)->manifest.name = strdup("Contract");
+            (*state)->manifest.name = neoc_strdup("Contract");
         }
         
         // Parse groups array
@@ -1095,7 +1098,7 @@ neoc_error_t neoc_rpc_get_contract_state(neoc_rpc_client_t *client,
                 cJSON_ArrayForEach(std_item, standards_item) {
                     if (i >= (*state)->manifest.supported_standards_count) break;
                     if (cJSON_IsString(std_item)) {
-                        (*state)->manifest.supported_standards[i] = strdup(std_item->valuestring);
+                        (*state)->manifest.supported_standards[i] = neoc_strdup(std_item->valuestring);
                     }
                     i++;
                 }
@@ -1300,6 +1303,488 @@ neoc_error_t neoc_rpc_get_native_contracts(neoc_rpc_client_t *client, char **con
     if (!client || !contracts) {
         return neoc_error_set(NEOC_ERROR_INVALID_ARGUMENT, "Invalid arguments");
     }
-    
+
     return make_rpc_call(client, RPC_GET_NATIVE_CONTRACTS, "[]", contracts);
+}
+
+/* ---- Phase 2: New RPC method implementations for Neo N3 v3.9.1 ---- */
+
+neoc_error_t neoc_rpc_get_block_header(neoc_rpc_client_t *client,
+                                        const neoc_hash256_t *hash,
+                                        bool verbose,
+                                        char **header) {
+    if (!client || !hash || !header) {
+        return neoc_error_set(NEOC_ERROR_INVALID_ARGUMENT, "Invalid arguments");
+    }
+
+    char hash_str[65];
+    neoc_error_t err = neoc_hash256_to_hex(hash, hash_str, sizeof(hash_str), false);
+    if (err != NEOC_SUCCESS) {
+        return err;
+    }
+
+    char params[128];
+    snprintf(params, sizeof(params), "[\"0x%s\", %d]", hash_str, verbose ? 1 : 0);
+
+    return make_rpc_call(client, RPC_GET_BLOCK_HEADER, params, header);
+}
+
+neoc_error_t neoc_rpc_get_block_header_count(neoc_rpc_client_t *client, uint32_t *count) {
+    if (!client || !count) {
+        return neoc_error_set(NEOC_ERROR_INVALID_ARGUMENT, "Invalid arguments");
+    }
+
+    char *result = NULL;
+    neoc_error_t err = make_rpc_call(client, RPC_GET_BLOCK_HEADER_COUNT, NULL, &result);
+    if (err != NEOC_SUCCESS) {
+        return err;
+    }
+
+#ifdef HAVE_CJSON
+    cJSON *json = cJSON_Parse(result);
+    if (json && cJSON_IsNumber(json)) {
+        *count = (uint32_t)json->valueint;
+        cJSON_Delete(json);
+    } else {
+        err = neoc_error_set(NEOC_ERROR_INVALID_FORMAT, "Invalid response format");
+    }
+    neoc_free(result);
+#else
+    neoc_free(result);
+    err = neoc_error_set(NEOC_ERROR_NOT_IMPLEMENTED, "cJSON support not compiled in");
+#endif
+
+    return err;
+}
+
+neoc_error_t neoc_rpc_invoke_contract_verify(neoc_rpc_client_t *client,
+                                              const neoc_hash160_t *script_hash,
+                                              const char *params,
+                                              const char *signers,
+                                              char **result) {
+    if (!client || !script_hash || !result) {
+        return neoc_error_set(NEOC_ERROR_INVALID_ARGUMENT, "Invalid arguments");
+    }
+
+    char hash_hex[NEOC_HASH160_STRING_LENGTH];
+    neoc_error_t err = neoc_hash160_to_hex(script_hash, hash_hex, sizeof(hash_hex), false);
+    if (err != NEOC_SUCCESS) {
+        return err;
+    }
+
+    char rpc_params[4096];
+    snprintf(rpc_params, sizeof(rpc_params), "[\"0x%s\", %s, %s]",
+             hash_hex,
+             params ? params : "[]",
+             signers ? signers : "[]");
+
+    return make_rpc_call(client, RPC_INVOKE_CONTRACT_VERIFY, rpc_params, result);
+}
+
+neoc_error_t neoc_rpc_get_unclaimed_gas(neoc_rpc_client_t *client,
+                                         const char *address,
+                                         char **unclaimed) {
+    if (!client || !address || !unclaimed) {
+        return neoc_error_set(NEOC_ERROR_INVALID_ARGUMENT, "Invalid arguments");
+    }
+
+    char params[128];
+    snprintf(params, sizeof(params), "[\"%s\"]", address);
+
+    return make_rpc_call(client, RPC_GET_UNCLAIMED_GAS, params, unclaimed);
+}
+
+neoc_error_t neoc_rpc_calculate_network_fee(neoc_rpc_client_t *client,
+                                             const uint8_t *tx_data,
+                                             size_t tx_size,
+                                             char **fee) {
+    if (!client || !tx_data || !fee) {
+        return neoc_error_set(NEOC_ERROR_INVALID_ARGUMENT, "Invalid arguments");
+    }
+
+    size_t base64_len = neoc_base64_encode_buffer_size(tx_size);
+    char *base64_tx = neoc_malloc(base64_len);
+    if (!base64_tx) {
+        return neoc_error_set(NEOC_ERROR_MEMORY, "Failed to allocate base64 buffer");
+    }
+
+    neoc_error_t err = neoc_base64_encode(tx_data, tx_size, base64_tx, base64_len);
+    if (err != NEOC_SUCCESS) {
+        neoc_free(base64_tx);
+        return err;
+    }
+
+    size_t params_len = base64_len + 8;
+    char *params = neoc_malloc(params_len);
+    if (!params) {
+        neoc_free(base64_tx);
+        return neoc_error_set(NEOC_ERROR_MEMORY, "Failed to allocate params buffer");
+    }
+    snprintf(params, params_len, "[\"%s\"]", base64_tx);
+    neoc_free(base64_tx);
+
+    err = make_rpc_call(client, RPC_CALCULATE_NETWORK_FEE, params, fee);
+    neoc_free(params);
+    return err;
+}
+
+neoc_error_t neoc_rpc_get_nep17_transfers(neoc_rpc_client_t *client,
+                                           const char *address,
+                                           char **transfers) {
+    if (!client || !address || !transfers) {
+        return neoc_error_set(NEOC_ERROR_INVALID_ARGUMENT, "Invalid arguments");
+    }
+
+    char params[128];
+    snprintf(params, sizeof(params), "[\"%s\"]", address);
+
+    return make_rpc_call(client, RPC_GET_NEP17_TRANSFERS, params, transfers);
+}
+
+neoc_error_t neoc_rpc_get_nep11_balances(neoc_rpc_client_t *client,
+                                          const char *address,
+                                          char **balances) {
+    if (!client || !address || !balances) {
+        return neoc_error_set(NEOC_ERROR_INVALID_ARGUMENT, "Invalid arguments");
+    }
+
+    char params[128];
+    snprintf(params, sizeof(params), "[\"%s\"]", address);
+
+    return make_rpc_call(client, RPC_GET_NEP11_BALANCES, params, balances);
+}
+
+neoc_error_t neoc_rpc_get_nep11_transfers(neoc_rpc_client_t *client,
+                                           const char *address,
+                                           char **transfers) {
+    if (!client || !address || !transfers) {
+        return neoc_error_set(NEOC_ERROR_INVALID_ARGUMENT, "Invalid arguments");
+    }
+
+    char params[128];
+    snprintf(params, sizeof(params), "[\"%s\"]", address);
+
+    return make_rpc_call(client, RPC_GET_NEP11_TRANSFERS, params, transfers);
+}
+
+neoc_error_t neoc_rpc_get_nep11_properties(neoc_rpc_client_t *client,
+                                            const neoc_hash160_t *script_hash,
+                                            const char *token_id,
+                                            char **properties) {
+    if (!client || !script_hash || !token_id || !properties) {
+        return neoc_error_set(NEOC_ERROR_INVALID_ARGUMENT, "Invalid arguments");
+    }
+
+    char hash_hex[NEOC_HASH160_STRING_LENGTH];
+    neoc_error_t err = neoc_hash160_to_hex(script_hash, hash_hex, sizeof(hash_hex), false);
+    if (err != NEOC_SUCCESS) {
+        return err;
+    }
+
+    char params[256];
+    snprintf(params, sizeof(params), "[\"0x%s\", \"%s\"]", hash_hex, token_id);
+
+    return make_rpc_call(client, RPC_GET_NEP11_PROPERTIES, params, properties);
+}
+
+neoc_error_t neoc_rpc_list_plugins(neoc_rpc_client_t *client, char **plugins) {
+    if (!client || !plugins) {
+        return neoc_error_set(NEOC_ERROR_INVALID_ARGUMENT, "Invalid arguments");
+    }
+
+    return make_rpc_call(client, RPC_LIST_PLUGINS, NULL, plugins);
+}
+
+neoc_error_t neoc_rpc_submit_block(neoc_rpc_client_t *client,
+                                    const uint8_t *block_data,
+                                    size_t block_size,
+                                    bool *accepted) {
+    if (!client || !block_data || !accepted) {
+        return neoc_error_set(NEOC_ERROR_INVALID_ARGUMENT, "Invalid arguments");
+    }
+
+    size_t base64_len = neoc_base64_encode_buffer_size(block_size);
+    char *base64_block = neoc_malloc(base64_len);
+    if (!base64_block) {
+        return neoc_error_set(NEOC_ERROR_MEMORY, "Failed to allocate base64 buffer");
+    }
+
+    neoc_error_t err = neoc_base64_encode(block_data, block_size, base64_block, base64_len);
+    if (err != NEOC_SUCCESS) {
+        neoc_free(base64_block);
+        return err;
+    }
+
+    size_t params_len = base64_len + 8;
+    char *params = neoc_malloc(params_len);
+    if (!params) {
+        neoc_free(base64_block);
+        return neoc_error_set(NEOC_ERROR_MEMORY, "Failed to allocate params buffer");
+    }
+    snprintf(params, params_len, "[\"%s\"]", base64_block);
+    neoc_free(base64_block);
+
+    char *result = NULL;
+    err = make_rpc_call(client, RPC_SUBMIT_BLOCK, params, &result);
+    neoc_free(params);
+    if (err != NEOC_SUCCESS) {
+        return err;
+    }
+
+#ifdef HAVE_CJSON
+    cJSON *json = cJSON_Parse(result);
+    if (json && cJSON_IsBool(json)) {
+        *accepted = cJSON_IsTrue(json);
+        cJSON_Delete(json);
+    } else {
+        *accepted = false;
+        err = neoc_error_set(NEOC_ERROR_INVALID_FORMAT, "Invalid response format");
+    }
+    neoc_free(result);
+#else
+    neoc_free(result);
+    err = neoc_error_set(NEOC_ERROR_NOT_IMPLEMENTED, "cJSON support not compiled in");
+#endif
+
+    return err;
+}
+
+neoc_error_t neoc_rpc_validate_address(neoc_rpc_client_t *client,
+                                        const char *address,
+                                        bool *is_valid) {
+    if (!client || !address || !is_valid) {
+        return neoc_error_set(NEOC_ERROR_INVALID_ARGUMENT, "Invalid arguments");
+    }
+
+    char params[128];
+    snprintf(params, sizeof(params), "[\"%s\"]", address);
+
+    char *result = NULL;
+    neoc_error_t err = make_rpc_call(client, RPC_VALIDATE_ADDRESS, params, &result);
+    if (err != NEOC_SUCCESS) {
+        return err;
+    }
+
+#ifdef HAVE_CJSON
+    cJSON *json = cJSON_Parse(result);
+    if (json) {
+        cJSON *valid = cJSON_GetObjectItem(json, "isvalid");
+        *is_valid = (valid && cJSON_IsTrue(valid));
+        cJSON_Delete(json);
+    } else {
+        *is_valid = false;
+        err = neoc_error_set(NEOC_ERROR_INVALID_FORMAT, "Invalid response format");
+    }
+    neoc_free(result);
+#else
+    neoc_free(result);
+    err = neoc_error_set(NEOC_ERROR_NOT_IMPLEMENTED, "cJSON support not compiled in");
+#endif
+
+    return err;
+}
+
+neoc_error_t neoc_rpc_get_candidates(neoc_rpc_client_t *client, char **candidates) {
+    if (!client || !candidates) {
+        return neoc_error_set(NEOC_ERROR_INVALID_ARGUMENT, "Invalid arguments");
+    }
+
+    return make_rpc_call(client, RPC_GET_CANDIDATES, NULL, candidates);
+}
+
+neoc_error_t neoc_rpc_traverse_iterator(neoc_rpc_client_t *client,
+                                         const char *session_id,
+                                         const char *iterator_id,
+                                         uint32_t count,
+                                         char **items) {
+    if (!client || !session_id || !iterator_id || !items) {
+        return neoc_error_set(NEOC_ERROR_INVALID_ARGUMENT, "Invalid arguments");
+    }
+
+    char params[256];
+    snprintf(params, sizeof(params), "[\"%s\", \"%s\", %u]",
+             session_id, iterator_id, count);
+
+    return make_rpc_call(client, RPC_TRAVERSE_ITERATOR, params, items);
+}
+
+neoc_error_t neoc_rpc_terminate_session(neoc_rpc_client_t *client,
+                                         const char *session_id,
+                                         bool *success) {
+    if (!client || !session_id || !success) {
+        return neoc_error_set(NEOC_ERROR_INVALID_ARGUMENT, "Invalid arguments");
+    }
+
+    char params[128];
+    snprintf(params, sizeof(params), "[\"%s\"]", session_id);
+
+    char *result = NULL;
+    neoc_error_t err = make_rpc_call(client, RPC_TERMINATE_SESSION, params, &result);
+    if (err != NEOC_SUCCESS) {
+        return err;
+    }
+
+#ifdef HAVE_CJSON
+    cJSON *json = cJSON_Parse(result);
+    if (json && cJSON_IsBool(json)) {
+        *success = cJSON_IsTrue(json);
+        cJSON_Delete(json);
+    } else {
+        *success = true; /* session termination returns true on success */
+    }
+    neoc_free(result);
+#else
+    neoc_free(result);
+    err = neoc_error_set(NEOC_ERROR_NOT_IMPLEMENTED, "cJSON support not compiled in");
+#endif
+
+    return err;
+}
+
+neoc_error_t neoc_rpc_get_state_root(neoc_rpc_client_t *client,
+                                      uint32_t index,
+                                      char **state_root) {
+    if (!client || !state_root) {
+        return neoc_error_set(NEOC_ERROR_INVALID_ARGUMENT, "Invalid arguments");
+    }
+
+    char params[32];
+    snprintf(params, sizeof(params), "[%u]", index);
+
+    return make_rpc_call(client, RPC_GET_STATE_ROOT, params, state_root);
+}
+
+neoc_error_t neoc_rpc_get_state(neoc_rpc_client_t *client,
+                                 const neoc_hash256_t *root_hash,
+                                 const neoc_hash160_t *script_hash,
+                                 const uint8_t *key,
+                                 size_t key_size,
+                                 char **value) {
+    if (!client || !root_hash || !script_hash || !key || !value) {
+        return neoc_error_set(NEOC_ERROR_INVALID_ARGUMENT, "Invalid arguments");
+    }
+
+    char root_str[65];
+    neoc_error_t err = neoc_hash256_to_hex(root_hash, root_str, sizeof(root_str), false);
+    if (err != NEOC_SUCCESS) return err;
+
+    char hash_str[41];
+    err = neoc_hash160_to_hex(script_hash, hash_str, sizeof(hash_str), false);
+    if (err != NEOC_SUCCESS) return err;
+
+    size_t b64_len = neoc_base64_encode_buffer_size(key_size);
+    char *b64_key = neoc_malloc(b64_len);
+    if (!b64_key) {
+        return neoc_error_set(NEOC_ERROR_MEMORY, "Failed to allocate buffer");
+    }
+    err = neoc_base64_encode(key, key_size, b64_key, b64_len);
+    if (err != NEOC_SUCCESS) {
+        neoc_free(b64_key);
+        return err;
+    }
+
+    char params[512];
+    snprintf(params, sizeof(params),
+             "[\"0x%s\", \"0x%s\", \"%s\"]", root_str, hash_str, b64_key);
+    neoc_free(b64_key);
+
+    return make_rpc_call(client, RPC_GET_STATE, params, value);
+}
+
+neoc_error_t neoc_rpc_find_states(neoc_rpc_client_t *client,
+                                   const neoc_hash256_t *root_hash,
+                                   const neoc_hash160_t *script_hash,
+                                   const uint8_t *prefix,
+                                   size_t prefix_size,
+                                   char **states) {
+    if (!client || !root_hash || !script_hash || !prefix || !states) {
+        return neoc_error_set(NEOC_ERROR_INVALID_ARGUMENT, "Invalid arguments");
+    }
+
+    char root_str[65];
+    neoc_error_t err = neoc_hash256_to_hex(root_hash, root_str, sizeof(root_str), false);
+    if (err != NEOC_SUCCESS) return err;
+
+    char hash_str[41];
+    err = neoc_hash160_to_hex(script_hash, hash_str, sizeof(hash_str), false);
+    if (err != NEOC_SUCCESS) return err;
+
+    size_t b64_len = neoc_base64_encode_buffer_size(prefix_size);
+    char *b64_prefix = neoc_malloc(b64_len);
+    if (!b64_prefix) {
+        return neoc_error_set(NEOC_ERROR_MEMORY, "Failed to allocate buffer");
+    }
+    err = neoc_base64_encode(prefix, prefix_size, b64_prefix, b64_len);
+    if (err != NEOC_SUCCESS) {
+        neoc_free(b64_prefix);
+        return err;
+    }
+
+    char params[512];
+    snprintf(params, sizeof(params),
+             "[\"0x%s\", \"0x%s\", \"%s\"]", root_str, hash_str, b64_prefix);
+    neoc_free(b64_prefix);
+
+    return make_rpc_call(client, RPC_FIND_STATES, params, states);
+}
+
+neoc_error_t neoc_rpc_get_proof(neoc_rpc_client_t *client,
+                                 const neoc_hash256_t *root_hash,
+                                 const neoc_hash160_t *script_hash,
+                                 const uint8_t *key,
+                                 size_t key_size,
+                                 char **proof) {
+    if (!client || !root_hash || !script_hash || !key || !proof) {
+        return neoc_error_set(NEOC_ERROR_INVALID_ARGUMENT, "Invalid arguments");
+    }
+
+    char root_str[65];
+    neoc_error_t err = neoc_hash256_to_hex(root_hash, root_str, sizeof(root_str), false);
+    if (err != NEOC_SUCCESS) return err;
+
+    char hash_str[41];
+    err = neoc_hash160_to_hex(script_hash, hash_str, sizeof(hash_str), false);
+    if (err != NEOC_SUCCESS) return err;
+
+    size_t b64_len = neoc_base64_encode_buffer_size(key_size);
+    char *b64_key = neoc_malloc(b64_len);
+    if (!b64_key) {
+        return neoc_error_set(NEOC_ERROR_MEMORY, "Failed to allocate buffer");
+    }
+    err = neoc_base64_encode(key, key_size, b64_key, b64_len);
+    if (err != NEOC_SUCCESS) {
+        neoc_free(b64_key);
+        return err;
+    }
+
+    char params[512];
+    snprintf(params, sizeof(params),
+             "[\"0x%s\", \"0x%s\", \"%s\"]", root_str, hash_str, b64_key);
+    neoc_free(b64_key);
+
+    return make_rpc_call(client, RPC_GET_PROOF, params, proof);
+}
+
+neoc_error_t neoc_rpc_verify_proof(neoc_rpc_client_t *client,
+                                    const neoc_hash256_t *root_hash,
+                                    const char *proof,
+                                    char **value) {
+    if (!client || !root_hash || !proof || !value) {
+        return neoc_error_set(NEOC_ERROR_INVALID_ARGUMENT, "Invalid arguments");
+    }
+
+    char root_str[65];
+    neoc_error_t err = neoc_hash256_to_hex(root_hash, root_str, sizeof(root_str), false);
+    if (err != NEOC_SUCCESS) return err;
+
+    size_t params_len = strlen(proof) + 128;
+    char *params = neoc_malloc(params_len);
+    if (!params) {
+        return neoc_error_set(NEOC_ERROR_MEMORY, "Failed to allocate params buffer");
+    }
+    snprintf(params, params_len, "[\"0x%s\", \"%s\"]", root_str, proof);
+
+    err = make_rpc_call(client, RPC_VERIFY_PROOF, params, value);
+    neoc_free(params);
+    return err;
 }

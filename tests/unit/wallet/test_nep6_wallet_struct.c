@@ -1,5 +1,5 @@
 /**
- * @file test_n_e_p6_wallet.c
+ * @file test_nep6_wallet_struct.c
  * @brief Unit tests converted from NEP6WalletTests.swift
  */
 
@@ -14,7 +14,7 @@
 static neoc_nep6_contract_t* create_test_contract(void) {
     neoc_nep6_parameter_t param = {0};
     param.name = neoc_strdup("signature");
-    param.type = NEOC_PARAM_TYPE_SIGNATURE;
+    param.type = NEOC_CONTRACT_PARAM_SIGNATURE;
 
     neoc_nep6_contract_t *contract = NULL;
     neoc_error_t err = neoc_nep6_contract_create("deadbeef", &param, 1, false, &contract);

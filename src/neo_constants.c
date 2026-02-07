@@ -7,21 +7,12 @@
 #include "neoc/types/neoc_hash160.h"
 
 // Version information
-const char* const NEO_VERSION = "3.6.0";
-const char* const NEO_VERSION_STRING = "NEO v3.6.0";
+const char* const NEO_VERSION = "3.9.1";
+const char* const NEO_VERSION_STRING = "NEO v3.9.1";
 
 // NEO N3 blockchain constants - these are runtime values, not macros
 
-// Native contract script hashes (N3)
-const neoc_hash160_t NEOC_NEO_TOKEN_HASH = {.data = {
-    0xef, 0x4e, 0xc2, 0x89, 0xd4, 0x9e, 0x7d, 0x7a,
-    0x80, 0xf2, 0xba, 0x06, 0x7e, 0xe8, 0xbc, 0xc3,
-    0x32, 0xf9, 0xb9, 0xde}};
-
-const neoc_hash160_t NEOC_GAS_TOKEN_HASH = {.data = {
-    0xd2, 0xa4, 0xce, 0xfe, 0x4e, 0x72, 0x83, 0x09,
-    0x88, 0x67, 0x37, 0x91, 0xdb, 0x7c, 0x7b, 0x39,
-    0x89, 0x79, 0x4e, 0x1a}};
+// Native token hashes are defined in contract modules (`neoc_token.c`, `gas_token.c`).
 
 const uint8_t POLICY_CONTRACT_SCRIPT_HASH[20] = {
     0xcc, 0x5e, 0x40, 0x09, 0xd8, 0x22, 0xc3, 0x05,

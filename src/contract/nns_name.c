@@ -1,5 +1,5 @@
 /**
- * @file n_n_s_name.c
+ * @file nns_name.c
  * @brief NNS Name record implementation
  */
 
@@ -29,7 +29,7 @@ neoc_error_t neoc_nns_name_create(const char *name,
         return neoc_error_set(NEOC_ERROR_MEMORY, "Failed to allocate NNS name");
     }
     
-    (*nns_name)->name = strdup(name);
+    (*nns_name)->name = neoc_strdup(name);
     if (!(*nns_name)->name) {
         neoc_free(*nns_name);
         *nns_name = NULL;
@@ -50,7 +50,7 @@ neoc_error_t neoc_nns_name_get_name(const neoc_nns_name_t *nns_name, char **name
         return neoc_error_set(NEOC_ERROR_INVALID_ARGUMENT, "Invalid arguments");
     }
     
-    *name = strdup(nns_name->name);
+    *name = neoc_strdup(nns_name->name);
     if (!*name) {
         return neoc_error_set(NEOC_ERROR_MEMORY, "Failed to duplicate name");
     }
@@ -132,4 +132,3 @@ void neoc_nns_name_free(neoc_nns_name_t *nns_name) {
     neoc_free(nns_name->name);
     neoc_free(nns_name);
 }
-

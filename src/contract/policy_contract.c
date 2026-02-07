@@ -213,7 +213,283 @@ neoc_error_t neoc_policy_set_fee_per_byte(neoc_policy_contract_t *policy,
     
     // Update cached value
     policy->fee_per_byte = fee;
-    
+
+    neoc_script_builder_free(builder);
+    return NEOC_SUCCESS;
+}
+
+neoc_error_t neoc_policy_set_exec_fee_factor(neoc_policy_contract_t *policy,
+                                              uint32_t factor) {
+    if (!policy) {
+        return neoc_error_set(NEOC_ERROR_INVALID_ARGUMENT, "Invalid policy");
+    }
+
+    neoc_script_builder_t *builder;
+    neoc_error_t err = neoc_script_builder_create(&builder);
+    if (err != NEOC_SUCCESS) {
+        return err;
+    }
+
+    err = neoc_script_builder_emit_push_int(builder, factor);
+    if (err != NEOC_SUCCESS) {
+        neoc_script_builder_free(builder);
+        return err;
+    }
+
+    neoc_hash160_t script_hash;
+    memcpy(script_hash.data, POLICY_CONTRACT_HASH, 20);
+
+    err = neoc_script_builder_emit_app_call(builder, &script_hash, "setExecFeeFactor", 1);
+    if (err != NEOC_SUCCESS) {
+        neoc_script_builder_free(builder);
+        return err;
+    }
+
+    policy->exec_fee_factor = factor;
+
+    neoc_script_builder_free(builder);
+    return NEOC_SUCCESS;
+}
+
+neoc_error_t neoc_policy_set_storage_price(neoc_policy_contract_t *policy,
+                                            uint32_t price) {
+    if (!policy) {
+        return neoc_error_set(NEOC_ERROR_INVALID_ARGUMENT, "Invalid policy");
+    }
+
+    neoc_script_builder_t *builder;
+    neoc_error_t err = neoc_script_builder_create(&builder);
+    if (err != NEOC_SUCCESS) {
+        return err;
+    }
+
+    err = neoc_script_builder_emit_push_int(builder, price);
+    if (err != NEOC_SUCCESS) {
+        neoc_script_builder_free(builder);
+        return err;
+    }
+
+    neoc_hash160_t script_hash;
+    memcpy(script_hash.data, POLICY_CONTRACT_HASH, 20);
+
+    err = neoc_script_builder_emit_app_call(builder, &script_hash, "setStoragePrice", 1);
+    if (err != NEOC_SUCCESS) {
+        neoc_script_builder_free(builder);
+        return err;
+    }
+
+    policy->storage_price = price;
+
+    neoc_script_builder_free(builder);
+    return NEOC_SUCCESS;
+}
+
+neoc_error_t neoc_policy_block_account(neoc_policy_contract_t *policy,
+                                        const neoc_hash160_t *account) {
+    if (!policy || !account) {
+        return neoc_error_set(NEOC_ERROR_INVALID_ARGUMENT, "Invalid arguments");
+    }
+
+    neoc_script_builder_t *builder;
+    neoc_error_t err = neoc_script_builder_create(&builder);
+    if (err != NEOC_SUCCESS) {
+        return err;
+    }
+
+    err = neoc_script_builder_push_data(builder, account->data, sizeof(account->data));
+    if (err != NEOC_SUCCESS) {
+        neoc_script_builder_free(builder);
+        return err;
+    }
+
+    neoc_hash160_t script_hash;
+    memcpy(script_hash.data, POLICY_CONTRACT_HASH, 20);
+
+    /* Neo v3.9.1: blockAccount also clears the account's votes */
+    err = neoc_script_builder_emit_app_call(builder, &script_hash, "blockAccount", 1);
+    if (err != NEOC_SUCCESS) {
+        neoc_script_builder_free(builder);
+        return err;
+    }
+
+    neoc_script_builder_free(builder);
+    return NEOC_SUCCESS;
+}
+
+neoc_error_t neoc_policy_unblock_account(neoc_policy_contract_t *policy,
+                                          const neoc_hash160_t *account) {
+    if (!policy || !account) {
+        return neoc_error_set(NEOC_ERROR_INVALID_ARGUMENT, "Invalid arguments");
+    }
+
+    neoc_script_builder_t *builder;
+    neoc_error_t err = neoc_script_builder_create(&builder);
+    if (err != NEOC_SUCCESS) {
+        return err;
+    }
+
+    err = neoc_script_builder_push_data(builder, account->data, sizeof(account->data));
+    if (err != NEOC_SUCCESS) {
+        neoc_script_builder_free(builder);
+        return err;
+    }
+
+    neoc_hash160_t script_hash;
+    memcpy(script_hash.data, POLICY_CONTRACT_HASH, 20);
+
+    err = neoc_script_builder_emit_app_call(builder, &script_hash, "unblockAccount", 1);
+    if (err != NEOC_SUCCESS) {
+        neoc_script_builder_free(builder);
+        return err;
+    }
+
+    neoc_script_builder_free(builder);
+    return NEOC_SUCCESS;
+}
+
+neoc_error_t neoc_policy_get_whitelist_fee_contracts(neoc_policy_contract_t *policy,
+                                                      neoc_hash160_t **hashes,
+                                                      size_t *count) {
+    if (!policy || !hashes || !count) {
+        return neoc_error_set(NEOC_ERROR_INVALID_ARGUMENT, "Invalid arguments");
+    }
+
+    neoc_script_builder_t *builder;
+    neoc_error_t err = neoc_script_builder_create(&builder);
+    if (err != NEOC_SUCCESS) {
+        return err;
+    }
+
+    neoc_hash160_t script_hash;
+    memcpy(script_hash.data, POLICY_CONTRACT_HASH, 20);
+
+    err = neoc_script_builder_emit_app_call(builder, &script_hash,
+                                             "getWhitelistFeeContracts", 0);
+    if (err != NEOC_SUCCESS) {
+        neoc_script_builder_free(builder);
+        return err;
+    }
+
+    /* Placeholder: would execute script via RPC and parse array result */
+    *hashes = NULL;
+    *count = 0;
+
+    neoc_script_builder_free(builder);
+    return NEOC_SUCCESS;
+}
+
+neoc_error_t neoc_policy_set_whitelist_fee_contract(neoc_policy_contract_t *policy,
+                                                     const neoc_hash160_t *contract_hash,
+                                                     const char *method,
+                                                     int32_t arg_count,
+                                                     int64_t fixed_fee) {
+    if (!policy || !contract_hash || !method || arg_count < 0 || fixed_fee < 0) {
+        return neoc_error_set(NEOC_ERROR_INVALID_ARGUMENT, "Invalid arguments");
+    }
+
+    neoc_script_builder_t *builder;
+    neoc_error_t err = neoc_script_builder_create(&builder);
+    if (err != NEOC_SUCCESS) {
+        return err;
+    }
+
+    /* Parameters order: contractHash, method, argCount, fixedFee */
+
+    /* fixedFee */
+    err = neoc_script_builder_emit_push_int(builder, fixed_fee);
+    if (err != NEOC_SUCCESS) {
+        neoc_script_builder_free(builder);
+        return err;
+    }
+
+    /* argCount */
+    err = neoc_script_builder_emit_push_int(builder, arg_count);
+    if (err != NEOC_SUCCESS) {
+        neoc_script_builder_free(builder);
+        return err;
+    }
+
+    /* method */
+    err = neoc_script_builder_push_data(builder,
+                                         (const uint8_t *)method,
+                                         strlen(method));
+    if (err != NEOC_SUCCESS) {
+        neoc_script_builder_free(builder);
+        return err;
+    }
+
+    /* contract hash */
+    err = neoc_script_builder_push_data(builder, contract_hash->data,
+                                         sizeof(contract_hash->data));
+    if (err != NEOC_SUCCESS) {
+        neoc_script_builder_free(builder);
+        return err;
+    }
+
+    neoc_hash160_t script_hash;
+    memcpy(script_hash.data, POLICY_CONTRACT_HASH, 20);
+
+    err = neoc_script_builder_emit_app_call(builder, &script_hash,
+                                             "setWhitelistFeeContract", 4);
+    if (err != NEOC_SUCCESS) {
+        neoc_script_builder_free(builder);
+        return err;
+    }
+
+    neoc_script_builder_free(builder);
+    return NEOC_SUCCESS;
+}
+
+neoc_error_t neoc_policy_remove_whitelist_fee_contract(neoc_policy_contract_t *policy,
+                                                        const neoc_hash160_t *contract_hash,
+                                                        const char *method,
+                                                        int32_t arg_count) {
+    if (!policy || !contract_hash || !method || arg_count < 0) {
+        return neoc_error_set(NEOC_ERROR_INVALID_ARGUMENT, "Invalid arguments");
+    }
+
+    neoc_script_builder_t *builder;
+    neoc_error_t err = neoc_script_builder_create(&builder);
+    if (err != NEOC_SUCCESS) {
+        return err;
+    }
+
+    /* Parameters order: contractHash, method, argCount */
+
+    /* argCount */
+    err = neoc_script_builder_emit_push_int(builder, arg_count);
+    if (err != NEOC_SUCCESS) {
+        neoc_script_builder_free(builder);
+        return err;
+    }
+
+    /* method */
+    err = neoc_script_builder_push_data(builder,
+                                         (const uint8_t *)method,
+                                         strlen(method));
+    if (err != NEOC_SUCCESS) {
+        neoc_script_builder_free(builder);
+        return err;
+    }
+
+    /* contract hash */
+    err = neoc_script_builder_push_data(builder, contract_hash->data,
+                                         sizeof(contract_hash->data));
+    if (err != NEOC_SUCCESS) {
+        neoc_script_builder_free(builder);
+        return err;
+    }
+
+    neoc_hash160_t script_hash;
+    memcpy(script_hash.data, POLICY_CONTRACT_HASH, 20);
+
+    err = neoc_script_builder_emit_app_call(builder, &script_hash,
+                                             "removeWhitelistFeeContract", 3);
+    if (err != NEOC_SUCCESS) {
+        neoc_script_builder_free(builder);
+        return err;
+    }
+
     neoc_script_builder_free(builder);
     return NEOC_SUCCESS;
 }

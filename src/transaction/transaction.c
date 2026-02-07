@@ -6,6 +6,8 @@
 #include "neoc/neoc_memory.h"
 #include "neoc/serialization/binary_writer.h"
 #include "neoc/serialization/binary_reader.h"
+#include "neoc/neo_constants.h"
+#include "neoc/protocol/core/witnessrule/witness_condition.h"
 #include <string.h>
 #include <time.h>
 
@@ -80,6 +82,9 @@ neoc_error_t neoc_transaction_set_script(neoc_transaction_t *transaction,
     if (!transaction || !script || script_len == 0) {
         return neoc_error_set(NEOC_ERROR_INVALID_ARGUMENT, "Invalid arguments");
     }
+    if (script_len > NEOC_MAX_SCRIPT_SIZE) {
+        return neoc_error_set(NEOC_ERROR_INVALID_SIZE, "Script exceeds maximum size");
+    }
     
     // Free old script if exists
     if (transaction->script) {
@@ -138,6 +143,9 @@ neoc_error_t neoc_transaction_add_signer(neoc_transaction_t *transaction,
     if (!transaction || !signer) {
         return neoc_error_set(NEOC_ERROR_INVALID_ARGUMENT, "Invalid arguments");
     }
+    if (transaction->signer_count >= NEOC_MAX_SIGNERS) {
+        return neoc_error_set(NEOC_ERROR_INVALID_SIZE, "Too many transaction signers");
+    }
     
     // Check for duplicate signer
     for (size_t i = 0; i < transaction->signer_count; i++) {
@@ -167,6 +175,9 @@ neoc_error_t neoc_transaction_add_attribute(neoc_transaction_t *transaction,
     if (!transaction || !attribute) {
         return neoc_error_set(NEOC_ERROR_INVALID_ARGUMENT, "Invalid arguments");
     }
+    if (transaction->attribute_count >= NEOC_MAX_TRANSACTION_ATTRIBUTES) {
+        return neoc_error_set(NEOC_ERROR_INVALID_SIZE, "Too many transaction attributes");
+    }
     
     // Resize attributes array
     size_t new_count = transaction->attribute_count + 1;
@@ -187,6 +198,9 @@ neoc_error_t neoc_transaction_add_witness(neoc_transaction_t *transaction,
                                            neoc_witness_t *witness) {
     if (!transaction || !witness) {
         return neoc_error_set(NEOC_ERROR_INVALID_ARGUMENT, "Invalid arguments");
+    }
+    if (transaction->witness_count >= NEOC_MAX_WITNESSES) {
+        return neoc_error_set(NEOC_ERROR_INVALID_SIZE, "Too many transaction witnesses");
     }
     
     // Resize witnesses array
@@ -236,7 +250,39 @@ static neoc_error_t neoc_tx_attribute_write(const neoc_tx_attribute_t *attribute
         return err;
     }
 
-    return neoc_binary_writer_write_var_bytes(writer, attribute->data, attribute->data_len);
+    switch (attribute->type) {
+        case NEOC_TX_ATTR_HIGH_PRIORITY:
+            if (attribute->data_len != 0) {
+                return neoc_error_set(NEOC_ERROR_INVALID_DATA,
+                                      "HighPriority attribute must not include payload data");
+            }
+            return NEOC_SUCCESS;
+
+        case NEOC_TX_ATTR_NOT_VALID_BEFORE:
+            if (attribute->data_len != sizeof(uint32_t) || !attribute->data) {
+                return neoc_error_set(NEOC_ERROR_INVALID_DATA,
+                                      "NotValidBefore attribute payload must be 4 bytes");
+            }
+            return neoc_binary_writer_write_bytes(writer, attribute->data, attribute->data_len);
+
+        case NEOC_TX_ATTR_CONFLICTS:
+            if (attribute->data_len != NEOC_HASH256_SIZE || !attribute->data) {
+                return neoc_error_set(NEOC_ERROR_INVALID_DATA,
+                                      "Conflicts attribute payload must be 32 bytes");
+            }
+            return neoc_binary_writer_write_bytes(writer, attribute->data, attribute->data_len);
+
+        case NEOC_TX_ATTR_ORACLE_RESPONSE:
+            /* Payload format: uint64 id + uint8 code + var_bytes result (already encoded). */
+            if (!attribute->data || attribute->data_len == 0) {
+                return neoc_error_set(NEOC_ERROR_INVALID_DATA,
+                                      "OracleResponse attribute payload is empty");
+            }
+            return neoc_binary_writer_write_bytes(writer, attribute->data, attribute->data_len);
+
+        default:
+            return neoc_error_set(NEOC_ERROR_INVALID_DATA, "Unknown transaction attribute type");
+    }
 }
 
 static neoc_error_t neoc_tx_write_attributes(const neoc_transaction_t *transaction,
@@ -300,6 +346,27 @@ static neoc_error_t neoc_transaction_build_serialized(const neoc_transaction_t *
         return neoc_error_set(NEOC_ERROR_INVALID_ARGUMENT, "Invalid arguments");
     }
 
+    if (transaction->system_fee > (uint64_t)INT64_MAX || transaction->network_fee > (uint64_t)INT64_MAX) {
+        return neoc_error_set(NEOC_ERROR_INVALID_DATA, "Transaction fees exceed int64 range");
+    }
+
+    if (transaction->signer_count > NEOC_MAX_SIGNERS ||
+        transaction->attribute_count > NEOC_MAX_TRANSACTION_ATTRIBUTES ||
+        (include_witnesses && transaction->witness_count > NEOC_MAX_WITNESSES)) {
+        return neoc_error_set(NEOC_ERROR_INVALID_SIZE, "Transaction contains too many items");
+    }
+
+    if ((transaction->signer_count > 0 && !transaction->signers) ||
+        (transaction->attribute_count > 0 && !transaction->attributes) ||
+        (include_witnesses && transaction->witness_count > 0 && !transaction->witnesses)) {
+        return neoc_error_set(NEOC_ERROR_INVALID_STATE, "Transaction item list is NULL");
+    }
+
+    if (transaction->script_len > NEOC_MAX_SCRIPT_SIZE ||
+        (transaction->script_len > 0 && !transaction->script)) {
+        return neoc_error_set(NEOC_ERROR_INVALID_DATA, "Invalid transaction script");
+    }
+
     neoc_binary_writer_t *writer = NULL;
     neoc_error_t err = neoc_binary_writer_create(256, true, &writer);
     if (err != NEOC_SUCCESS) {
@@ -356,7 +423,8 @@ neoc_error_t neoc_transaction_calculate_hash(neoc_transaction_t *transaction,
         return err;
     }
 
-    err = neoc_sha256(data, data_len, hash->data);
+    /* Neo N3 transaction hash is Hash256 = SHA256(SHA256(unsigned_data)) */
+    err = neoc_sha256_double(data, data_len, hash->data);
     if (err == NEOC_SUCCESS) {
         memcpy(&transaction->hash, hash, sizeof(neoc_hash256_t));
     }
@@ -411,16 +479,432 @@ neoc_error_t neoc_transaction_serialize(const neoc_transaction_t *transaction,
     return NEOC_SUCCESS;
 }
 
+static neoc_error_t neoc_tx_read_signer(neoc_binary_reader_t *reader, neoc_signer_t **out_signer) {
+    if (!reader || !out_signer) {
+        return neoc_error_set(NEOC_ERROR_INVALID_ARGUMENT, "Invalid signer deserialize arguments");
+    }
+
+    uint8_t account_bytes[sizeof(neoc_hash160_t)];
+    neoc_error_t err = neoc_binary_reader_read_bytes(reader, account_bytes, sizeof(account_bytes));
+    if (err != NEOC_SUCCESS) {
+        return err;
+    }
+
+    uint8_t scopes = 0;
+    err = neoc_binary_reader_read_byte(reader, &scopes);
+    if (err != NEOC_SUCCESS) {
+        return err;
+    }
+
+    neoc_hash160_t account;
+    memcpy(account.data, account_bytes, sizeof(account_bytes));
+
+    neoc_signer_t *signer = NULL;
+    err = neoc_signer_create(&account, scopes, &signer);
+    if (err != NEOC_SUCCESS) {
+        return err;
+    }
+
+    if (scopes & NEOC_WITNESS_SCOPE_CUSTOM_CONTRACTS) {
+        uint64_t contract_count = 0;
+        err = neoc_binary_reader_read_var_int_max(reader, NEOC_MAX_SIGNER_SUBITEMS, &contract_count);
+        if (err != NEOC_SUCCESS) {
+            neoc_signer_free(signer);
+            return err;
+        }
+
+        for (uint64_t i = 0; i < contract_count; i++) {
+            uint8_t contract_bytes[sizeof(neoc_hash160_t)];
+            err = neoc_binary_reader_read_bytes(reader, contract_bytes, sizeof(contract_bytes));
+            if (err != NEOC_SUCCESS) {
+                neoc_signer_free(signer);
+                return err;
+            }
+            neoc_hash160_t contract_hash;
+            memcpy(contract_hash.data, contract_bytes, sizeof(contract_bytes));
+            err = neoc_signer_add_allowed_contract(signer, &contract_hash);
+            if (err != NEOC_SUCCESS) {
+                neoc_signer_free(signer);
+                return err;
+            }
+        }
+    }
+
+    if (scopes & NEOC_WITNESS_SCOPE_CUSTOM_GROUPS) {
+        uint64_t group_count = 0;
+        err = neoc_binary_reader_read_var_int_max(reader, NEOC_MAX_SIGNER_SUBITEMS, &group_count);
+        if (err != NEOC_SUCCESS) {
+            neoc_signer_free(signer);
+            return err;
+        }
+
+        for (uint64_t i = 0; i < group_count; i++) {
+            uint8_t *group_data = NULL;
+            size_t group_len = 0;
+            err = neoc_binary_reader_read_var_bytes_max(reader, NEOC_PUBLIC_KEY_SIZE_COMPRESSED, &group_data, &group_len);
+            if (err != NEOC_SUCCESS) {
+                neoc_signer_free(signer);
+                return err;
+            }
+            err = neoc_signer_add_allowed_group(signer, group_data, group_len);
+            neoc_free(group_data);
+            if (err != NEOC_SUCCESS) {
+                neoc_signer_free(signer);
+                return err;
+            }
+        }
+    }
+
+    if (scopes & NEOC_WITNESS_SCOPE_WITNESS_RULES) {
+        uint64_t rule_count = 0;
+        err = neoc_binary_reader_read_var_int_max(reader, NEOC_MAX_SIGNER_SUBITEMS, &rule_count);
+        if (err != NEOC_SUCCESS) {
+            neoc_signer_free(signer);
+            return err;
+        }
+
+        if (rule_count > 0) {
+            signer->rules = neoc_calloc((size_t)rule_count, sizeof(neoc_witness_rule_t *));
+            if (!signer->rules) {
+                neoc_signer_free(signer);
+                return neoc_error_set(NEOC_ERROR_MEMORY, "Failed to allocate witness rules");
+            }
+        }
+
+        for (uint64_t i = 0; i < rule_count; i++) {
+            uint8_t action_byte = 0;
+            err = neoc_binary_reader_read_byte(reader, &action_byte);
+            if (err != NEOC_SUCCESS) {
+                neoc_signer_free(signer);
+                return err;
+            }
+
+            neoc_witness_condition_t *condition = NULL;
+            err = neoc_witness_condition_deserialize(reader, &condition);
+            if (err != NEOC_SUCCESS) {
+                neoc_signer_free(signer);
+                return err;
+            }
+
+            neoc_witness_rule_t *rule = NULL;
+            err = neoc_witness_rule_create((neoc_witness_action_t)action_byte, condition, &rule);
+            if (err != NEOC_SUCCESS) {
+                neoc_witness_condition_free(condition);
+                neoc_signer_free(signer);
+                return err;
+            }
+
+            signer->rules[(size_t)i] = rule;
+        }
+        signer->rules_count = (size_t)rule_count;
+    }
+
+    *out_signer = signer;
+    return NEOC_SUCCESS;
+}
+
+static neoc_error_t neoc_tx_read_witness(neoc_binary_reader_t *reader, neoc_witness_t **out_witness) {
+    if (!reader || !out_witness) {
+        return neoc_error_set(NEOC_ERROR_INVALID_ARGUMENT, "Invalid witness deserialize arguments");
+    }
+
+    uint8_t *invocation = NULL;
+    size_t invocation_len = 0;
+    neoc_error_t err = neoc_binary_reader_read_var_bytes_max(reader, NEOC_MAX_SCRIPT_SIZE, &invocation, &invocation_len);
+    if (err != NEOC_SUCCESS) {
+        return err;
+    }
+
+    uint8_t *verification = NULL;
+    size_t verification_len = 0;
+    err = neoc_binary_reader_read_var_bytes_max(reader, NEOC_MAX_SCRIPT_SIZE, &verification, &verification_len);
+    if (err != NEOC_SUCCESS) {
+        neoc_free(invocation);
+        return err;
+    }
+
+    neoc_witness_t *witness = NULL;
+    err = neoc_witness_create(invocation, invocation_len, verification, verification_len, &witness);
+
+    neoc_free(invocation);
+    neoc_free(verification);
+
+    if (err != NEOC_SUCCESS) {
+        return err;
+    }
+
+    *out_witness = witness;
+    return NEOC_SUCCESS;
+}
+
+static neoc_error_t neoc_tx_read_attribute(neoc_binary_reader_t *reader,
+                                           neoc_tx_attribute_t **out_attribute) {
+    if (!reader || !out_attribute) {
+        return neoc_error_set(NEOC_ERROR_INVALID_ARGUMENT, "Invalid attribute deserialize arguments");
+    }
+
+    uint8_t type_byte = 0;
+    neoc_error_t err = neoc_binary_reader_read_byte(reader, &type_byte);
+    if (err != NEOC_SUCCESS) {
+        return err;
+    }
+
+    neoc_tx_attribute_type_t type = (neoc_tx_attribute_type_t)type_byte;
+    switch (type) {
+        case NEOC_TX_ATTR_HIGH_PRIORITY:
+            return neoc_tx_attribute_create(type, NULL, 0, out_attribute);
+
+        case NEOC_TX_ATTR_NOT_VALID_BEFORE: {
+            uint8_t payload[sizeof(uint32_t)];
+            err = neoc_binary_reader_read_bytes(reader, payload, sizeof(payload));
+            if (err != NEOC_SUCCESS) {
+                return err;
+            }
+            return neoc_tx_attribute_create(type, payload, sizeof(payload), out_attribute);
+        }
+
+        case NEOC_TX_ATTR_CONFLICTS: {
+            uint8_t payload[NEOC_HASH256_SIZE];
+            err = neoc_binary_reader_read_bytes(reader, payload, sizeof(payload));
+            if (err != NEOC_SUCCESS) {
+                return err;
+            }
+            return neoc_tx_attribute_create(type, payload, sizeof(payload), out_attribute);
+        }
+
+        case NEOC_TX_ATTR_ORACLE_RESPONSE: {
+            uint64_t request_id = 0;
+            err = neoc_binary_reader_read_uint64(reader, &request_id);
+            if (err != NEOC_SUCCESS) {
+                return err;
+            }
+
+            uint8_t response_code = 0;
+            err = neoc_binary_reader_read_byte(reader, &response_code);
+            if (err != NEOC_SUCCESS) {
+                return err;
+            }
+
+            uint8_t *result = NULL;
+            size_t result_len = 0;
+            err = neoc_binary_reader_read_var_bytes_max(reader, NEOC_MAX_ITEM_SIZE, &result, &result_len);
+            if (err != NEOC_SUCCESS) {
+                return err;
+            }
+
+            neoc_binary_writer_t *writer = NULL;
+            err = neoc_binary_writer_create(16 + result_len, true, &writer);
+            if (err != NEOC_SUCCESS) {
+                neoc_free(result);
+                return err;
+            }
+
+            err = neoc_binary_writer_write_uint64(writer, request_id);
+            if (err == NEOC_SUCCESS) {
+                err = neoc_binary_writer_write_byte(writer, response_code);
+            }
+            if (err == NEOC_SUCCESS) {
+                err = neoc_binary_writer_write_var_bytes(writer, result, result_len);
+            }
+
+            uint8_t *payload = NULL;
+            size_t payload_len = 0;
+            if (err == NEOC_SUCCESS) {
+                err = neoc_binary_writer_to_array(writer, &payload, &payload_len);
+            }
+
+            neoc_binary_writer_free(writer);
+            neoc_free(result);
+
+            if (err != NEOC_SUCCESS) {
+                neoc_free(payload);
+                return err;
+            }
+
+            err = neoc_tx_attribute_create(type, payload, payload_len, out_attribute);
+            neoc_free(payload);
+            return err;
+        }
+
+        default:
+            return neoc_error_set(NEOC_ERROR_INVALID_DATA, "Unknown transaction attribute type");
+    }
+}
+
+static neoc_error_t neoc_transaction_deserialize_reader(neoc_binary_reader_t *reader,
+                                                        neoc_transaction_t **transaction) {
+    if (!reader || !transaction) {
+        return neoc_error_set(NEOC_ERROR_INVALID_ARGUMENT, "Invalid transaction deserialize arguments");
+    }
+
+    neoc_transaction_t *tx = NULL;
+    neoc_error_t err = neoc_transaction_create(&tx);
+    if (err != NEOC_SUCCESS) {
+        return err;
+    }
+
+    err = neoc_binary_reader_read_byte(reader, &tx->version);
+    if (err == NEOC_SUCCESS) {
+        err = neoc_binary_reader_read_uint32(reader, &tx->nonce);
+    }
+    if (err == NEOC_SUCCESS) {
+        int64_t sys_fee = 0;
+        err = neoc_binary_reader_read_int64(reader, &sys_fee);
+        if (err == NEOC_SUCCESS) {
+            if (sys_fee < 0) {
+                err = neoc_error_set(NEOC_ERROR_INVALID_DATA, "system_fee is negative");
+            } else {
+                tx->system_fee = (uint64_t)sys_fee;
+            }
+        }
+    }
+    if (err == NEOC_SUCCESS) {
+        int64_t net_fee = 0;
+        err = neoc_binary_reader_read_int64(reader, &net_fee);
+        if (err == NEOC_SUCCESS) {
+            if (net_fee < 0) {
+                err = neoc_error_set(NEOC_ERROR_INVALID_DATA, "network_fee is negative");
+            } else {
+                tx->network_fee = (uint64_t)net_fee;
+            }
+        }
+    }
+    if (err == NEOC_SUCCESS) {
+        err = neoc_binary_reader_read_uint32(reader, &tx->valid_until_block);
+    }
+
+    uint64_t signer_count = 0;
+    if (err == NEOC_SUCCESS) {
+        err = neoc_binary_reader_read_var_int_max(reader, NEOC_MAX_SIGNERS, &signer_count);
+    }
+    if (err == NEOC_SUCCESS && signer_count > 0) {
+        tx->signers = neoc_calloc((size_t)signer_count, sizeof(neoc_signer_t *));
+        if (!tx->signers) {
+            err = neoc_error_set(NEOC_ERROR_MEMORY, "Failed to allocate signers");
+        }
+    }
+    if (err == NEOC_SUCCESS) {
+        for (uint64_t i = 0; i < signer_count; i++) {
+            neoc_signer_t *signer = NULL;
+            err = neoc_tx_read_signer(reader, &signer);
+            if (err != NEOC_SUCCESS) {
+                break;
+            }
+            tx->signers[i] = signer;
+            tx->signer_count++;
+        }
+    }
+
+    uint64_t attr_count = 0;
+    if (err == NEOC_SUCCESS) {
+        err = neoc_binary_reader_read_var_int_max(reader, NEOC_MAX_TRANSACTION_ATTRIBUTES, &attr_count);
+    }
+    if (err == NEOC_SUCCESS && attr_count > 0) {
+        tx->attributes = neoc_calloc((size_t)attr_count, sizeof(neoc_tx_attribute_t *));
+        if (!tx->attributes) {
+            err = neoc_error_set(NEOC_ERROR_MEMORY, "Failed to allocate attributes");
+        }
+    }
+    if (err == NEOC_SUCCESS) {
+        for (uint64_t i = 0; i < attr_count; i++) {
+            neoc_tx_attribute_t *attr = NULL;
+            err = neoc_tx_read_attribute(reader, &attr);
+            if (err != NEOC_SUCCESS) {
+                break;
+            }
+            tx->attributes[i] = attr;
+            tx->attribute_count++;
+        }
+    }
+
+    if (err == NEOC_SUCCESS) {
+        err = neoc_binary_reader_read_var_bytes_max(reader, NEOC_MAX_SCRIPT_SIZE, &tx->script, &tx->script_len);
+    }
+
+    uint64_t witness_count = 0;
+    if (err == NEOC_SUCCESS) {
+        err = neoc_binary_reader_read_var_int_max(reader, NEOC_MAX_WITNESSES, &witness_count);
+    }
+    if (err == NEOC_SUCCESS && witness_count > 0) {
+        tx->witnesses = neoc_calloc((size_t)witness_count, sizeof(neoc_witness_t *));
+        if (!tx->witnesses) {
+            err = neoc_error_set(NEOC_ERROR_MEMORY, "Failed to allocate witnesses");
+        }
+    }
+    if (err == NEOC_SUCCESS) {
+        for (uint64_t i = 0; i < witness_count; i++) {
+            neoc_witness_t *witness = NULL;
+            err = neoc_tx_read_witness(reader, &witness);
+            if (err != NEOC_SUCCESS) {
+                break;
+            }
+            tx->witnesses[i] = witness;
+            tx->witness_count++;
+        }
+    }
+
+    if (err != NEOC_SUCCESS) {
+        neoc_transaction_free(tx);
+        return err;
+    }
+
+    *transaction = tx;
+    return NEOC_SUCCESS;
+}
+
+neoc_error_t neoc_transaction_deserialize(const uint8_t *bytes,
+                                           size_t bytes_len,
+                                           neoc_transaction_t **transaction) {
+    if (!bytes || bytes_len == 0 || !transaction) {
+        return neoc_error_set(NEOC_ERROR_INVALID_ARGUMENT, "Invalid transaction deserialize arguments");
+    }
+
+    neoc_binary_reader_t *reader = NULL;
+    neoc_error_t err = neoc_binary_reader_create(bytes, bytes_len, &reader);
+    if (err != NEOC_SUCCESS) {
+        return err;
+    }
+
+    neoc_transaction_t *tx = NULL;
+    err = neoc_transaction_deserialize_reader(reader, &tx);
+    neoc_binary_reader_free(reader);
+    if (err != NEOC_SUCCESS) {
+        return err;
+    }
+
+    *transaction = tx;
+    return NEOC_SUCCESS;
+}
+
 neoc_transaction_t* neoc_transaction_deserialize_simple(const uint8_t *bytes,
                                                         size_t bytes_len,
                                                         size_t *consumed) {
-    (void)bytes;
-    (void)bytes_len;
     if (consumed) {
         *consumed = 0;
     }
-    // Binary transaction deserialization not yet implemented
-    return NULL;
+
+    if (!bytes || bytes_len == 0) {
+        return NULL;
+    }
+
+    neoc_binary_reader_t *reader = NULL;
+    neoc_error_t err = neoc_binary_reader_create(bytes, bytes_len, &reader);
+    if (err != NEOC_SUCCESS) {
+        return NULL;
+    }
+
+    neoc_transaction_t *tx = NULL;
+    err = neoc_transaction_deserialize_reader(reader, &tx);
+    if (err != NEOC_SUCCESS) {
+        neoc_binary_reader_free(reader);
+        return NULL;
+    }
+
+    if (consumed) {
+        *consumed = neoc_binary_reader_get_position(reader);
+    }
+    neoc_binary_reader_free(reader);
+    return tx;
 }
 
 neoc_error_t neoc_transaction_sign(neoc_transaction_t *transaction,
@@ -521,8 +1005,7 @@ size_t neoc_transaction_get_size(const neoc_transaction_t *transaction) {
     size += neoc_tx_var_int_size(transaction->attribute_count);
     for (size_t i = 0; i < transaction->attribute_count; i++) {
         size += 1; // attribute type
-        if (transaction->attributes[i]) {
-            size += neoc_tx_var_int_size(transaction->attributes[i]->data_len);
+        if (transaction->attributes[i] && transaction->attributes[i]->data_len > 0) {
             size += transaction->attributes[i]->data_len;
         }
     }
@@ -551,9 +1034,12 @@ void neoc_transaction_free(neoc_transaction_t *transaction) {
     
     // Free signers
     if (transaction->signers) {
-        // In test contexts we may not own the signer memory; avoid dereferencing potentially invalid pointers.
-        transaction->signer_count = 0;
+        for (size_t i = 0; i < transaction->signer_count; i++) {
+            neoc_signer_free(transaction->signers[i]);
+        }
         neoc_free(transaction->signers);
+        transaction->signers = NULL;
+        transaction->signer_count = 0;
     }
     
     // Free attributes

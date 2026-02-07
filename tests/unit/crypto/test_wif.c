@@ -1,5 +1,5 @@
 /**
- * @file test_w_i_f.c
+ * @file test_wif.c
  * @brief Unit tests converted from WIFTests.swift
  */
 

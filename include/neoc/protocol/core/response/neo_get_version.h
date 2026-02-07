@@ -20,9 +20,20 @@ extern "C" {
 #endif
 
 /**
+ * @brief Hardfork entry for Neo protocol version tracking
+ *
+ * Neo v3.9.1 added hardfork information to the getversion response.
+ */
+typedef struct {
+    char *name;                          /**< Hardfork name (e.g. "HF_Aspidochelone") */
+    uint32_t block_height;              /**< Block height at which hardfork activates */
+} neoc_hardfork_t;
+
+/**
  * @brief Neo node version information
- * 
- * Contains comprehensive version and protocol information about the Neo node
+ *
+ * Contains comprehensive version and protocol information about the Neo node.
+ * Updated for Neo N3 v3.9.1 compatibility.
  */
 typedef struct {
     uint32_t tcp_port;                   /**< TCP port for P2P network */
@@ -37,6 +48,9 @@ typedef struct {
         uint32_t memory_pool_max_transactions; /**< Memory pool max size */
         uint32_t max_trace_results;      /**< Maximum trace results */
         uint64_t initial_gas_distribution; /**< Initial GAS distribution */
+        uint32_t validators_count;       /**< Number of consensus validators (v3.9.1) */
+        neoc_hardfork_t *hardforks;      /**< Hardfork entries (v3.9.1) */
+        size_t hardforks_count;          /**< Number of hardfork entries */
         char **valid_signers;            /**< Valid signers array */
         size_t valid_signers_count;      /**< Number of valid signers */
         char **committee_members;        /**< Committee members */
@@ -134,6 +148,35 @@ neoc_error_t neoc_neo_version_add_committee_member(neoc_neo_version_t *version,
  */
 neoc_error_t neoc_neo_version_add_seed_node(neoc_neo_version_t *version,
                                              const char *seed);
+
+/**
+ * @brief Set validators count (v3.9.1)
+ *
+ * @param version The version structure
+ * @param count Number of consensus validators
+ * @return NEOC_SUCCESS on success, error code otherwise
+ */
+neoc_error_t neoc_neo_version_set_validators_count(neoc_neo_version_t *version,
+                                                    uint32_t count);
+
+/**
+ * @brief Add a hardfork entry (v3.9.1)
+ *
+ * @param version The version structure
+ * @param name Hardfork name (e.g. "HF_Aspidochelone")
+ * @param block_height Activation block height
+ * @return NEOC_SUCCESS on success, error code otherwise
+ */
+neoc_error_t neoc_neo_version_add_hardfork(neoc_neo_version_t *version,
+                                            const char *name,
+                                            uint32_t block_height);
+
+/**
+ * @brief Free hardfork entry resources
+ *
+ * @param hardfork The hardfork entry to free (does not free the struct itself)
+ */
+void neoc_hardfork_cleanup(neoc_hardfork_t *hardfork);
 
 /**
  * @brief Create version response

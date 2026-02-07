@@ -64,9 +64,7 @@ void test_create_generic_account(void) {
     TEST_ASSERT_NOT_NULL(verification_script);
     TEST_ASSERT_TRUE(script_len > 0);
     
-    neoc_ec_key_pair_t* key_pair;
-    err = neoc_account_get_key_pair(account, &key_pair);
-    TEST_ASSERT_EQUAL_INT(NEOC_SUCCESS, err);
+    neoc_ec_key_pair_t* key_pair = neoc_account_get_key_pair_ptr(account);
     TEST_ASSERT_NOT_NULL(key_pair);
     
     char* label;
@@ -408,9 +406,7 @@ void test_decrypt_with_standard_scrypt_params(void) {
     TEST_ASSERT_EQUAL_INT(NEOC_SUCCESS, err);
     
     // Verify private key matches expected
-    neoc_ec_key_pair_t* key_pair;
-    err = neoc_account_get_key_pair(account, &key_pair);
-    TEST_ASSERT_EQUAL_INT(NEOC_SUCCESS, err);
+    neoc_ec_key_pair_t* key_pair = neoc_account_get_key_pair_ptr(account);
     TEST_ASSERT_NOT_NULL(key_pair);
     
     uint8_t decrypted_key[32];
@@ -468,9 +464,8 @@ void test_create_account_from_wif(void) {
     TEST_ASSERT_EQUAL_INT(NEOC_SUCCESS, err);
     
     // Verify key pair matches
-    neoc_ec_key_pair_t* account_key_pair;
-    err = neoc_account_get_key_pair(account, &account_key_pair);
-    TEST_ASSERT_EQUAL_INT(NEOC_SUCCESS, err);
+    neoc_ec_key_pair_t* account_key_pair = neoc_account_get_key_pair_ptr(account);
+    TEST_ASSERT_NOT_NULL(account_key_pair);
     
     uint8_t account_private_key[32];
     size_t key_len = sizeof(account_private_key);

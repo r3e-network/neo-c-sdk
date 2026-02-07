@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
-#include "../stack_item.h"
+#include "neoc/protocol/stack_item.h"
 #include "notification.h"
 #include "diagnostics.h"
 

@@ -58,8 +58,7 @@ void test_write_uint32(void) {
     uint8_t expected3[] = {0x39, 0x30, 0x00, 0x00};
     test_and_compare(writer, expected3, 4);
     
-    neoc_free(writer->data);
-    neoc_free(writer);
+    neoc_binary_writer_free(writer);
 }
 
 void test_write_int64(void) {
@@ -100,8 +99,7 @@ void test_write_int64(void) {
     uint8_t expected4[] = {0xD2, 0x02, 0x96, 0x49, 0x00, 0x00, 0x00, 0x00};
     test_and_compare(writer, expected4, 8);
     
-    neoc_free(writer->data);
-    neoc_free(writer);
+    neoc_binary_writer_free(writer);
 }
 
 void test_write_uint16(void) {
@@ -133,8 +131,7 @@ void test_write_uint16(void) {
     uint8_t expected3[] = {0x39, 0x30};
     test_and_compare(writer, expected3, 2);
     
-    neoc_free(writer->data);
-    neoc_free(writer);
+    neoc_binary_writer_free(writer);
 }
 
 void test_write_var_int(void) {
@@ -211,8 +208,7 @@ void test_write_var_int(void) {
     uint8_t expected10[] = {0xFF, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00};
     test_and_compare(writer, expected10, 9);
     
-    neoc_free(writer->data);
-    neoc_free(writer);
+    neoc_binary_writer_free(writer);
 }
 
 void test_write_var_bytes(void) {
@@ -241,8 +237,7 @@ void test_write_var_bytes(void) {
     TEST_ASSERT_EQUAL_MEMORY(data2, writer->data + 3, 262);
     TEST_ASSERT_EQUAL_UINT32(265, writer->position);
     
-    neoc_free(writer->data);
-    neoc_free(writer);
+    neoc_binary_writer_free(writer);
 }
 
 void test_write_bytes(void) {
@@ -263,8 +258,7 @@ void test_write_bytes(void) {
     uint8_t expected[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xCA, 0xFE, 0xBA, 0xBE};
     test_and_compare(writer, expected, 8);
     
-    neoc_free(writer->data);
-    neoc_free(writer);
+    neoc_binary_writer_free(writer);
 }
 
 void test_write_bool(void) {
@@ -285,8 +279,7 @@ void test_write_bool(void) {
     uint8_t expected[] = {0x00, 0x01};
     test_and_compare(writer, expected, 2);
     
-    neoc_free(writer->data);
-    neoc_free(writer);
+    neoc_binary_writer_free(writer);
 }
 
 void test_writer_auto_grow(void) {
@@ -305,8 +298,27 @@ void test_writer_auto_grow(void) {
     TEST_ASSERT_TRUE(writer->capacity >= 16);
     test_and_compare(writer, data, 16);
     
-    neoc_free(writer->data);
-    neoc_free(writer);
+    neoc_binary_writer_free(writer);
+}
+
+void test_writer_to_array_after_reset_returns_empty_success(void) {
+    neoc_binary_writer_t *writer = NULL;
+    neoc_error_t err = neoc_binary_writer_create(16, true, &writer);
+    TEST_ASSERT_EQUAL_INT(NEOC_SUCCESS, err);
+
+    err = neoc_binary_writer_write_uint32(writer, 12345);
+    TEST_ASSERT_EQUAL_INT(NEOC_SUCCESS, err);
+
+    neoc_binary_writer_reset(writer);
+
+    uint8_t *data = (uint8_t*)0x1;
+    size_t len = 999;
+    err = neoc_binary_writer_to_array(writer, &data, &len);
+    TEST_ASSERT_EQUAL_INT(NEOC_SUCCESS, err);
+    TEST_ASSERT_EQUAL_UINT(0, len);
+    TEST_ASSERT_NULL(data);
+
+    neoc_binary_writer_free(writer);
 }
 
 /* ===== MAIN TEST RUNNER ===== */
@@ -324,6 +336,7 @@ int main(void) {
     RUN_TEST(test_write_bytes);
     RUN_TEST(test_write_bool);
     RUN_TEST(test_writer_auto_grow);
+    RUN_TEST(test_writer_to_array_after_reset_returns_empty_success);
     
     UNITY_END();
     return 0;

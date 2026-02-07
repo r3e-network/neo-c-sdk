@@ -163,6 +163,16 @@ void neoc_diagnostics_free(
 );
 
 /**
+ * @brief Clone diagnostics (deep copy)
+ *
+ * @param diagnostics Diagnostics to clone
+ * @return Newly allocated diagnostics on success, NULL on failure
+ */
+neoc_diagnostics_t* neoc_diagnostics_clone(
+    const neoc_diagnostics_t *diagnostics
+);
+
+/**
  * @brief Parse diagnostics from JSON string
  * 
  * @param json_str JSON string containing diagnostics data

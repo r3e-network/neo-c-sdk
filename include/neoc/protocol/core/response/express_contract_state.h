@@ -2,8 +2,7 @@
 #define NEOC_EXPRESS_CONTRACT_STATE_H
 
 #include <stdbool.h>
-#include "../../types/neoc_hash160.h"
-#include "../contract_response_types.h"
+#include "neoc/types/hash160.h"
 
 #ifdef __cplusplus
 extern "C" {

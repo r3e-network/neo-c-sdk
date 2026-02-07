@@ -1,5 +1,5 @@
 /**
- * @file neo_v_m_state_type.c
+ * @file neoc_vm_state_type_alt.c
  * @brief Neo VM state type implementation
  */
 

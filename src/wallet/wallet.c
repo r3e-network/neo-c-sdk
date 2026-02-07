@@ -13,38 +13,43 @@ neoc_error_t neoc_wallet_create(const char *name, neoc_wallet_t **wallet) {
         return neoc_error_set(NEOC_ERROR_INVALID_ARGUMENT, "Invalid wallet pointer");
     }
     
-    *wallet = calloc(1, sizeof(neoc_wallet_t));
+    *wallet = neoc_calloc(1, sizeof(neoc_wallet_t));
     if (!*wallet) {
         return neoc_error_set(NEOC_ERROR_MEMORY, "Failed to allocate wallet");
     }
     
     // Set wallet name
     if (name) {
-        (*wallet)->name = strdup(name);
+        (*wallet)->name = neoc_strdup(name);
         if (!(*wallet)->name) {
-            free(*wallet);
+            neoc_free(*wallet);
             *wallet = NULL;
             return neoc_error_set(NEOC_ERROR_MEMORY, "Failed to allocate wallet name");
         }
     } else {
-        (*wallet)->name = strdup("NeoC Wallet");
+        (*wallet)->name = neoc_strdup("NeoC Wallet");
+        if (!(*wallet)->name) {
+            neoc_free(*wallet);
+            *wallet = NULL;
+            return neoc_error_set(NEOC_ERROR_MEMORY, "Failed to allocate wallet name");
+        }
     }
     
     // Set version
-    (*wallet)->version = strdup("1.0");
+    (*wallet)->version = neoc_strdup("1.0");
     if (!(*wallet)->version) {
-        free((*wallet)->name);
-        free(*wallet);
+        neoc_free((*wallet)->name);
+        neoc_free(*wallet);
         *wallet = NULL;
         return neoc_error_set(NEOC_ERROR_MEMORY, "Failed to allocate version");
     }
     
     // Allocate initial account array
-    (*wallet)->accounts = calloc(INITIAL_ACCOUNT_CAPACITY, sizeof(neoc_account_t*));
+    (*wallet)->accounts = neoc_calloc(INITIAL_ACCOUNT_CAPACITY, sizeof(neoc_account_t*));
     if (!(*wallet)->accounts) {
-        free((*wallet)->version);
-        free((*wallet)->name);
-        free(*wallet);
+        neoc_free((*wallet)->version);
+        neoc_free((*wallet)->name);
+        neoc_free(*wallet);
         *wallet = NULL;
         return neoc_error_set(NEOC_ERROR_MEMORY, "Failed to allocate account array");
     }
@@ -68,7 +73,7 @@ neoc_error_t neoc_wallet_get_name_copy(const neoc_wallet_t *wallet, char **name_
         *name_out = NULL;
         return wallet ? NEOC_SUCCESS : neoc_error_set(NEOC_ERROR_INVALID_ARGUMENT, "wallet_get_name: invalid wallet");
     }
-    *name_out = strdup(wallet->name);
+    *name_out = neoc_strdup(wallet->name);
     if (!*name_out) {
         return neoc_error_set(NEOC_ERROR_MEMORY, "wallet_get_name: allocation failed");
     }
@@ -90,7 +95,7 @@ neoc_error_t neoc_wallet_add_account(neoc_wallet_t *wallet, neoc_account_t *acco
     // Resize array if needed
     if (wallet->account_count >= wallet->account_capacity) {
         size_t new_capacity = wallet->account_capacity * 2;
-        neoc_account_t **new_accounts = realloc(wallet->accounts, 
+        neoc_account_t **new_accounts = neoc_realloc(wallet->accounts,
                                                  new_capacity * sizeof(neoc_account_t*));
         if (!new_accounts) {
             return neoc_error_set(NEOC_ERROR_MEMORY, "Failed to resize account array");
@@ -445,7 +450,7 @@ neoc_error_t neoc_wallet_from_nep6(const neoc_nep6_wallet_t *nep6_wallet, neoc_w
     char *version_copy = NULL;
     err = neoc_nep6_wallet_get_version(nep6_wallet, &version_copy);
     if (err == NEOC_SUCCESS && version_copy) {
-        free((*wallet)->version);
+        neoc_free((*wallet)->version);
         (*wallet)->version = version_copy;
     }
 
@@ -576,20 +581,20 @@ void neoc_wallet_free(neoc_wallet_t *wallet) {
     for (size_t i = 0; i < wallet->account_count; i++) {
         neoc_account_free(wallet->accounts[i]);
     }
-    free(wallet->accounts);
+    neoc_free(wallet->accounts);
     
     // Free wallet fields
     if (wallet->name) {
-        free(wallet->name);
+        neoc_free(wallet->name);
     }
     
     if (wallet->version) {
-        free(wallet->version);
+        neoc_free(wallet->version);
     }
     
     if (wallet->extra) {
-        free(wallet->extra);
+        neoc_free(wallet->extra);
     }
     
-    free(wallet);
+    neoc_free(wallet);
 }

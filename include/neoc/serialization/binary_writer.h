@@ -176,6 +176,8 @@ size_t neoc_binary_writer_get_position(const neoc_binary_writer_t *writer);
  * @param writer The writer
  * @param data Output pointer to data (do not free)
  * @param len Output length
+ * @note When the writer is empty, returns `NEOC_SUCCESS` with `*len == 0` and `*data == NULL`.
+ *  When the writer is empty, returns `NEOC_SUCCESS` with `*len == 0` and `*data == NULL`.
  * @return NEOC_SUCCESS on success, error code otherwise
  */
 neoc_error_t neoc_binary_writer_get_data(const neoc_binary_writer_t *writer,
@@ -186,8 +188,9 @@ neoc_error_t neoc_binary_writer_get_data(const neoc_binary_writer_t *writer,
  * @brief Convert writer data to allocated buffer
  * 
  * @param writer The writer
- * @param data Output data (caller must free)
+ * @param data Output data (caller must free when non-NULL)
  * @param len Output length
+ * @note When the writer is empty, returns `NEOC_SUCCESS` with `*len == 0` and `*data == NULL`.
  * @return NEOC_SUCCESS on success, error code otherwise
  */
 neoc_error_t neoc_binary_writer_to_array(const neoc_binary_writer_t *writer,

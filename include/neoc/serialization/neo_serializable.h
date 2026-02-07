@@ -120,15 +120,16 @@ struct neoc_serializable {
  * The caller is responsible for freeing the returned data.
  * 
  * @param obj The object to serialize (must not be NULL and be valid)
- * @param data Output byte array (must not be NULL, caller must free)
+ * @param data Output byte array (must not be NULL, caller must free when non-NULL)
  * @param len Output length of data (must not be NULL)
  * @return NEOC_SUCCESS on success, error code on failure
  * 
  * @note Thread Safety: This function is thread-safe if the object's serialize
  *       function is thread-safe (which depends on the specific implementation).
  * 
- * @note Memory Management: The caller must call free() on the returned data.
- *       If this function fails, *data will be NULL and no cleanup is needed.
+ * @note Memory Management: The caller must call free() on the returned data when non-NULL.
+ *       On success for zero-length serializations, `*len == 0` and `*data == NULL`.
+ *       If this function fails, `*data` will be NULL and no cleanup is needed.
  */
 neoc_error_t neoc_serializable_to_array(const neoc_serializable_t *obj,
                                          uint8_t **data,
